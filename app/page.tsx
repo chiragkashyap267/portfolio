@@ -1,12 +1,15 @@
-// app/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 /**
- * Stronger 3D hero + amplified cyan glow + circular skill icons + full-height timeline glow.
- * Uses local hero image: /chirag.png
+ * Full HomePage component with:
+ * - marquee scrollbar removed
+ * - hover focus outlines removed
+ * - hover scale/shadow tuned so items won't be clipped
+ *
+ * All other functionality unchanged.
  */
 
 export default function HomePage() {
@@ -71,16 +74,17 @@ export default function HomePage() {
       const rect = el.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
       const y = (e.clientY - rect.top) / rect.height;
-      // stronger tilt for pronounced 3D
-      const rotateY = (x - 0.5) * 24; // ±12deg
-      const rotateX = (0.5 - y) * 24; // ±12deg
+      const rotateY = (x - 0.5) * 24;
+      const rotateX = (0.5 - y) * 24;
       const scale = hovered ? 1.08 : 1.045;
       setTiltStyle({
         transform: `perspective(1400px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${scale})`,
       });
     }
     function onLeave() {
-      setTiltStyle({ transform: "perspective(1400px) rotateX(0deg) rotateY(0deg) scale(1)" });
+      setTiltStyle({
+        transform: "perspective(1400px) rotateX(0deg) rotateY(0deg) scale(1)",
+      });
     }
     el.addEventListener("mousemove", onMove);
     el.addEventListener("mouseleave", onLeave);
@@ -93,54 +97,66 @@ export default function HomePage() {
   return (
     <main className="bg-[#050506] text-slate-100 antialiased">
       <style>{`
-        /* marquee */
+        /* marquee animation */
         @keyframes marquee { 0% { transform: translateX(0%);} 100% { transform: translateX(-50%);} }
 
-        /* vertical glow traveling down the timeline (covers full height) */
+        /*
+          FIXES:
+          - Remove the scrollbar by using overflow hidden on the marquee wrapper
+          - Add vertical padding so hover scale & shadows do not clip
+          - Reduce hover scale & shadow slightly to avoid exceeding padding
+          - Remove focus/outline/tap highlight to prevent the white rectangle after click
+        */
+        .marquee-clip {
+          overflow-x: hidden;   /* keep side clipping for the marquee effect */
+          overflow-y: hidden;   /* hide vertical scrollbar */
+          padding-top: 10px;    /* space so items can scale without being cut */
+          padding-bottom: 10px;
+          position: relative;
+        }
+        /* hide any scrollbar in webkit browsers just in case */
+        .marquee-clip::-webkit-scrollbar { display: none; }
+
+        /* vertical glow traveling down the timeline */
         @keyframes expGlow { 0% { transform: translateY(-30%); opacity:0 } 8% { opacity:1 } 100% { transform: translateY(120%); opacity:0 } }
-
         @keyframes subtleFadeUp { 0%{opacity:0; transform: translateY(8px);} 100%{opacity:1; transform: translateY(0);} }
-
-        /* hero floating bloom */
         @keyframes slowFloat { 0%{ transform: translateY(0);} 50%{ transform: translateY(-8px);} 100%{ transform: translateY(0);} }
 
         .glow-cyan { text-shadow: 0 0 14px rgba(6,182,212,0.18), 0 0 34px rgba(6,182,212,0.08); }
-
-        /* stronger hero glow */
         .hero-glow-layer { filter: blur(80px); opacity: 0.9; will-change: transform, opacity; }
 
-        /* hero hover extra rim */
         .hero:hover .hero-rim {
           box-shadow: 0 40px 140px rgba(6,182,212,0.20), inset 0 0 60px rgba(6,182,212,0.06);
         }
 
-        /* experience card fade-in */
         .exp-card { opacity: 0; animation: subtleFadeUp 520ms ease-out forwards; }
-
-        /* timeline line glow */
         .timeline-line { box-shadow: 0 0 90px rgba(6,182,212,0.06); }
 
-        /* circular skill icon hover */
         .skill-circle { transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease; }
         .skill-circle:hover { transform: translateY(-8px) scale(1.06); box-shadow: 0 30px 80px rgba(6,182,212,0.10); border-color: rgba(6,182,212,0.25); }
 
-        /* marquee skill hover effect */
-        .marquee-skill { transition: all 350ms ease; }
-        .marquee-skill:hover { 
-          background: rgba(6,182,212,0.15); 
-          border-color: rgba(6,182,212,0.5);
-          transform: scale(1.15);
-          box-shadow: 0 0 30px rgba(6,182,212,0.3);
+        /* marquee skill: tuned hover so it fits inside the padded container */
+        .marquee-skill { transition: transform 260ms ease, box-shadow 260ms ease, background 260ms ease; -webkit-tap-highlight-color: transparent; }
+        .marquee-skill:hover {
+          background: rgba(6,182,212,0.12);
+          border-color: rgba(6,182,212,0.35);
+          transform: scale(1.12); /* slightly reduced from 1.15 to avoid clipping */
+          box-shadow: 0 18px 40px rgba(6,182,212,0.18);
         }
-        .marquee-skill:hover .skill-dot { 
+        /* keep the small dot glow but avoid very-large shadows */
+        .marquee-skill .skill-dot {
+          transition: background 260ms ease, box-shadow 260ms ease;
+        }
+        .marquee-skill:hover .skill-dot {
           background: rgb(34,211,238);
-          box-shadow: 0 0 30px rgba(34,211,238,0.9);
-        }
-        .marquee-skill:hover span:last-child { 
-          color: rgb(165,243,252);
+          box-shadow: 0 0 18px rgba(34,211,238,0.55);
         }
 
-        /* honeycomb hexagon effect for stat boxes */
+        /* remove focus/outline (prevents white rectangular focus ring) */
+        .marquee-skill:focus,
+        .marquee-skill:active { outline: none; box-shadow: 0 12px 26px rgba(6,182,212,0.12); }
+
+        /* honeycomb / stat boxes */
         .hex {
           background: linear-gradient(135deg, rgba(4,16,24,0.9), rgba(8,24,40,0.9));
           border: 1px solid rgba(100,116,139,0.3);
@@ -151,7 +167,7 @@ export default function HomePage() {
           content: '';
           position: absolute;
           inset: -2px;
-          background: conic-gradient(from 180deg at 50% 50%, 
+          background: conic-gradient(from 180deg at 50% 50%,
             rgba(6,182,212,0) 0deg,
             rgba(6,182,212,0.4) 90deg,
             rgba(59,130,246,0.4) 180deg,
@@ -164,10 +180,7 @@ export default function HomePage() {
           z-index: -1;
           animation: rotateBorder 4s linear infinite paused;
         }
-        .hex:hover::before {
-          opacity: 1;
-          animation-play-state: running;
-        }
+        .hex:hover::before { opacity: 1; animation-play-state: running; }
         .hex::after {
           content: '';
           position: absolute;
@@ -178,19 +191,13 @@ export default function HomePage() {
           transition: opacity 400ms ease;
           clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
         }
-        .hex:hover::after {
-          opacity: 1;
-        }
+        .hex:hover::after { opacity: 1; }
         .hex:hover {
           transform: translateY(-8px) scale(1.03);
           border-color: rgba(6,182,212,0.5);
           box-shadow: 0 20px 60px rgba(6,182,212,0.2), 0 0 80px rgba(6,182,212,0.1);
         }
-
-        @keyframes rotateBorder {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
+        @keyframes rotateBorder { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
       `}</style>
 
@@ -198,7 +205,7 @@ export default function HomePage() {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-20 bg-gradient-to-br from-[#001219] via-[#001e2e] to-[#071018]" />
 
-        {/* subtle background video (dev path) */}
+        {/* background video/dev path (kept as-is) */}
         <video
           className="absolute inset-0 w-full h-full object-cover opacity-5 -z-30 pointer-events-none"
           src={"public/chirag.png"}
@@ -237,9 +244,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right: hero image + amplified multi-layer glow */}
+            {/* Right: hero image */}
             <div className="flex justify-center lg:justify-end relative">
-              {/* bigger, multi-layered cyan glows behind image */}
               <div
                 className="absolute -inset-20 z-0 rounded-full pointer-events-none"
                 style={{
@@ -275,7 +281,6 @@ export default function HomePage() {
                 }}
                 className="relative w-80 h-80 md:w-96 md:h-96 lg:w-[420px] lg:h-[420px] rounded-3xl overflow-hidden bg-[#050815] border border-slate-800 shadow-2xl hero"
               >
-                {/* strong rim that intensifies on hover (class hero-rim targeted by CSS) */}
                 <div
                   className="absolute -inset-1 rounded-3xl hero-rim pointer-events-none"
                   style={{
@@ -285,7 +290,6 @@ export default function HomePage() {
                   }}
                 />
 
-                {/* hero image uses uploaded local path */}
                 <img
                   src="/chirag.png"
                   alt="Chirag Kashyap"
@@ -293,19 +297,16 @@ export default function HomePage() {
                   style={{ transformOrigin: "center", backfaceVisibility: "hidden" }}
                 />
 
-                {/* stronger cyan overlay on hover */}
                 <div className="absolute inset-0 bg-cyan-400/12 opacity-0 hover:opacity-80 mix-blend-screen transition-opacity duration-350 pointer-events-none" />
 
-                <div className="absolute -left-6 -bottom-6 rounded-full p-3 bg-[#020617] border border-cyan-600 shadow-lg text-cyan-300">
-                  ★
-                </div>
+                <div className="absolute -left-6 -bottom-6 rounded-full p-3 bg-[#020617] border border-cyan-600 shadow-lg text-cyan-300">★</div>
               </div>
             </div>
           </div>
 
-          {/* MARQUEE */}
-          <div className="mt-12 overflow-hidden border-t border-slate-800 pt-6">
-            <div className="relative">
+          {/* MARQUEE (updated: no scrollbar) */}
+          <div className="mt-12 border-t border-slate-800 pt-6">
+            <div className="relative marquee-clip">
               <div className="whitespace-nowrap will-change-transform" style={{ animation: "marquee 28s linear infinite" }}>
                 <div className="inline-flex items-center gap-6 pr-8">
                   {marqueeSkills.concat(marqueeSkills).map((s, i) => {
@@ -313,12 +314,10 @@ export default function HomePage() {
                     return (
                       <div
                         key={i}
-                        className={`marquee-skill inline-flex items-center gap-3 px-7 py-4 rounded-full bg-[#020819] border border-slate-700
-                        text-base text-slate-200 mr-4 ${emphasize ? "scale-110 md:scale-125" : ""}`}
+                        tabIndex={0}
+                        className={`marquee-skill inline-flex items-center gap-3 px-7 py-4 rounded-full bg-[#020819] border border-slate-700 text-base text-slate-200 mr-4 ${emphasize ? "scale-110 md:scale-125" : ""}`}
                       >
-                        <span
-                          className={`skill-dot w-3.5 h-3.5 rounded-full ${emphasize ? "bg-cyan-300 shadow-[0_0_26px_rgba(34,211,238,0.85)]" : "bg-slate-600"}`}
-                        />
+                        <span className={`skill-dot w-3.5 h-3.5 rounded-full ${emphasize ? "bg-cyan-300" : "bg-slate-600"}`} />
                         <span className={`${emphasize ? "font-semibold text-cyan-100" : ""}`}>{s}</span>
                       </div>
                     );
@@ -327,37 +326,35 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+
         </div>
       </section>
 
-      {/* MAIN CONTENT */}
+      {/* MAIN CONTENT (unchanged) */}
       <div className="max-w-6xl mx-auto px-6 py-20 space-y-16">
-        {/* PROFESSIONAL EXPERIENCE (centered heading) */}
         <section>
           <h2 className="text-3xl font-extrabold text-center mb-8">
             Professional <span className="text-cyan-400">Experience</span>
           </h2>
 
           <div className="relative">
-            {/* center vertical line spanning full section */}
             <div className="absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0 w-[4px] bg-slate-800 timeline-line rounded" />
 
-            {/* moving glow element traveling full length */}
             <div className="absolute left-1/2 -translate-x-1/2 top-0">
               <div className="w-2 h-[32vh] md:h-[28vh] lg:h-[30vh] rounded-full bg-gradient-to-b from-cyan-400 to-transparent opacity-95 animate-[expGlow_6s_linear_infinite]" />
             </div>
 
-            {/* long wrapper so glow spans all items */}
             <div className="space-y-20 mt-6 min-h-[720px]">
               {experienceFlow.map((ex, idx) => {
                 const isLeft = idx % 2 === 0;
                 return (
                   <div
                     key={ex.company}
-                    className={`exp-card relative w-full md:flex md:items-start md:justify-between ${isLeft ? "md:flex-row" : "md:flex-row-reverse"}`}
+                    className={`exp-card relative w-full md:flex md:items-start md:justify-between ${
+                      isLeft ? "md:flex-row" : "md:flex-row-reverse"
+                    }`}
                     style={{ animationDelay: `${idx * 140}ms` }}
                   >
-                    {/* Card */}
                     <div className="md:w-5/12 p-6 rounded-xl bg-[#041018] border border-slate-800 shadow-lg">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold">{ex.company}</h3>
@@ -366,7 +363,6 @@ export default function HomePage() {
                       <p className="text-sm text-slate-300 mt-3">{ex.desc}</p>
                     </div>
 
-                    {/* center marker */}
                     <div className="hidden md:block w-6 h-6 rounded-full bg-[#020617] border-2 border-cyan-400 absolute left-1/2 -translate-x-1/2 top-8 shadow-[0_0_24px_rgba(34,211,238,0.28)]" />
 
                     <div className="md:w-5/12" />
@@ -377,7 +373,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Honeycomb-like stat boxes (below timeline) */}
         <section className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="hex p-8 rounded-xl flex flex-col items-center justify-center text-center">
             <div className="text-cyan-300 font-semibold mb-2">Experience</div>
@@ -398,7 +393,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Skills — circular icon tiles */}
         <section>
           <h3 className="text-2xl font-semibold mb-8 text-center">Skills & Expertise</h3>
           <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-8 place-items-center max-w-5xl mx-auto">
@@ -414,12 +408,9 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* FOOTER */}
       <footer className="border-t border-slate-800 mt-12">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="text-sm text-slate-400">
-            © 2025 <span className="font-semibold text-slate-200">Chirag Kashyap</span> — GRAPHIXPERT
-          </div>
+          <div className="text-sm text-slate-400">© 2025 <span className="font-semibold text-slate-200">Chirag Kashyap</span> — GRAPHIXPERT</div>
 
           <div className="flex items-center gap-6 text-sm text-slate-400">
             <div className="flex gap-3">

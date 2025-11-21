@@ -34,3 +34,14 @@ body {
   10% { opacity: 1; }
   100% { transform: translateY(200%); opacity: 0; }
 }
+/* ensure middle column truncates long public_id instead of pushing buttons */
+.recent-row { align-items: flex-start; }
+
+/* the middle column uses min-width:0 to allow truncation in flex container (applied above) */
+
+/* action buttons should never shrink or wrap */
+.recent-actions { display: flex; gap: 0.5rem; align-items: center; }
+.recent-actions button { white-space: nowrap; min-width: 54px; flex-shrink: 0; }
+
+/* optional small polish so the card doesn't expand horizontally */
+.recent-row img { display: block; }

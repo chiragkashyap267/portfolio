@@ -29,6 +29,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {/* NAV: always visible, wraps on mobile so all tabs can be seen */}
               <nav className="w-full sm:w-auto">
                 <div className="flex flex-wrap md:flex-nowrap md:justify-end gap-1.5 sm:gap-3 text-[0.7rem] xs:text-xs sm:text-sm text-slate-300">
+                   <Link href="/mockups" className="px-3 py-2 hover:text-white transition">Mockups</Link>
+                  
                   <Link
                     href="/packaging"
                     className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded hover:text-white hover:bg-white/5 transition whitespace-nowrap"
@@ -71,6 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   >
                     Admin
                   </Link>
+                  
                 </div>
               </nav>
             </div>

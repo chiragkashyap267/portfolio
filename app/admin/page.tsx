@@ -11,6 +11,8 @@ const CATEGORIES = [
   { key: "infographics", label: "Infographics & A+ Content" },
   { key: "videos", label: "Videos" },
   { key: "flyers", label: "Brochure / Flyers" },
+  { key: "mockups", label: "Mockups" },
+  
 ];
 
 export default function AdminPage() {

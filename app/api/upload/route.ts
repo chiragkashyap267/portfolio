@@ -1,74 +1,67 @@
 // app/api/upload/route.ts
-import { v2 as cloudinary } from "cloudinary";
-const streamifier = require("streamifier");
-import fs from "fs";
-import path from "path";
+import { NextRequest, NextResponse } from "next/server";
+import cloudinary from "@/lib/cloudinary";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-  api_key: process.env.CLOUDINARY_API_KEY!,
-  api_secret: process.env.CLOUDINARY_API_SECRET!,
-});
+export const runtime = "nodejs";
 
-export async function POST(req: Request) {
-  const adminPass = req.headers.get("x-admin-pass") || "";
-  if (adminPass !== process.env.ADMIN_PASSWORD) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
-  }
+// we won't force-check categories here – we trust what comes from the admin select
+function uploadToCloudinary(buffer: Buffer, category: string) {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream(
+        {
+          folder: `portfolio/${category}`, // folder encodes the category
+          resource_type: "auto",
+          tags: ["portfolio", category],
+          context: { category },
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      )
+      .end(buffer);
+  });
+}
 
+export async function POST(req: NextRequest) {
   try {
+    const adminPass = req.headers.get("x-admin-pass") || "";
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+    if (!ADMIN_PASSWORD) {
+      return NextResponse.json(
+        { error: "Server admin password not configured" },
+        { status: 500 }
+      );
+    }
+
+    if (adminPass !== ADMIN_PASSWORD) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
-    const category = (formData.get("category") as string) || "uncategorized";
+    let category = (formData.get("category") as string) || "uncategorized";
 
     if (!file) {
-      return new Response(JSON.stringify({ error: "No file provided" }), { status: 400 });
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    // Just in case something weird comes, normalize to lowercase
+    category = category.trim().toLowerCase();
 
-    // upload to cloudinary under portfolio/<category>
-    const result: any = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: `portfolio/${category}`, resource_type: "auto" },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      streamifier.createReadStream(buffer).pipe(uploadStream);
-    });
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // Save metadata to data/uploads.json
-    try {
-      const dataPath = path.join(process.cwd(), "data", "uploads.json");
-      let arr: any[] = [];
-      if (fs.existsSync(dataPath)) {
-        try {
-          arr = JSON.parse(fs.readFileSync(dataPath, "utf-8"));
-        } catch (e) {
-          arr = [];
-        }
-      }
+    const result: any = await uploadToCloudinary(buffer, category);
 
-      arr.unshift({
-        url: result.secure_url || result.url,
-        public_id: result.public_id,
-        category,
-        createdAt: new Date().toISOString(),
-        bytes: result.bytes ?? null,
-        resource_type: result.resource_type ?? null,
-      });
-
-      fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-      fs.writeFileSync(dataPath, JSON.stringify(arr, null, 2));
-    } catch (err: any) {
-      console.error("Failed to save uploads.json:", err.message);
-    }
-
-    return new Response(JSON.stringify({ result }), { status: 200 });
+    return NextResponse.json({ result }, { status: 200 });
   } catch (err: any) {
-    console.error(err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    console.error("Upload error:", err);
+    return NextResponse.json(
+      { error: "Upload failed", details: err?.message || String(err) },
+      { status: 500 }
+    );
   }
 }

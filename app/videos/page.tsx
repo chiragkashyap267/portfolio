@@ -1,11 +1,36 @@
-import fs from "fs";
-import path from "path";
+"use client";
+
+import { useEffect, useState } from "react";
 import Gallery from "../component/Gallery";
 
 export default function VideosPage() {
-  const filePath = path.join(process.cwd(), "data", "uploads.json");
-  const raw = fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : "[]";
-  const data = JSON.parse(raw);
-  const items = data.filter((item: any) => item.category === "videos");
-  return <Gallery title="Videos" description="Short-form videos, product ads, and motion graphics." items={items} />;
+  const [items, setItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/uploads?category=videos", { cache: "no-store" });
+
+        if (!res.ok) {
+          console.error("Failed to fetch video items:", await res.text());
+          return;
+        }
+
+        const data = await res.json();
+        setItems(data);
+      } catch (err) {
+        console.error("Error loading video items:", err);
+      }
+    }
+
+    load();
+  }, []);
+
+  return (
+    <Gallery
+      title="Videos"
+      description="Short-form videos, product ads, and motion graphics."
+      items={items}
+    />
+  );
 }

@@ -201,6 +201,20 @@ export default function HomePage() {
           100% { transform: translateY(0); }
         }
 
+        /* Desktop spacing for experience timeline */
+@media (min-width: 1024px) {
+  .experience-wrapper .exp-card {
+    margin-top: 1rem; /* small additional gap */
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .timeline-line {
+    margin-top: 10px;
+  }
+}
+
+
         @media (max-width: 768px) {
           /* hero: animated 3D orbit on mobile */
           .hero-card {
@@ -222,7 +236,28 @@ export default function HomePage() {
             animation-duration: 14s;
           }
         }
-      `}</style>
+
+        /* Desktop spacing between cards and the center line */
+@media (min-width: 1024px) {
+  .exp-card {
+    position: relative;
+  }
+
+  /* LEFT side cards */
+  .exp-card:nth-child(odd) > div:first-child {
+    transform: translateX(-60px); /* moves card away from line */
+  }
+
+  /* RIGHT side cards */
+  .exp-card:nth-child(even) > div:first-child {
+    transform: translateX(60px); /* moves card away from line */
+  }
+}
+
+
+      `
+      
+      }</style>
 
       {/* HERO */}
       <section className="relative overflow-hidden">

@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "url": "https://res.cloudinary.com/ds6xwzglf/image/upload/v1763804558/portfolio_uploads/thumbnails/mhww068lnhvo6w81pblg.jpg",
+    "public_id": "portfolio_uploads/thumbnails/mhww068lnhvo6w81pblg",
+    "category": "thumbnails",
+    "createdAt": "2025-11-22T09:42:38.760Z"
+  },
+  {
+    "url": "https://res.cloudinary.com/ds6xwzglf/image/upload/v1763804511/portfolio_uploads/packaging/xoqaqb6gubtwnfnzfytc.jpg",
+    "public_id": "portfolio_uploads/packaging/xoqaqb6gubtwnfnzfytc",
+    "category": "packaging",
+    "createdAt": "2025-11-22T09:41:52.718Z"
+  }
+]

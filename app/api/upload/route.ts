@@ -14,6 +14,14 @@ function uploadToCloudinary(buffer: Buffer, category: string) {
           resource_type: "auto",
           tags: ["portfolio", category],
           context: { category },
+
+          // 🔥 AUTO OPTIMIZATION (quality + format)
+          transformation: [
+            {
+              fetch_format: "auto", // webp/avif/jpeg depending on browser
+              quality: "auto:good", // high visual quality, smaller size
+            },
+          ],
         },
         (error, result) => {
           if (error) return reject(error);
@@ -45,10 +53,13 @@ export async function POST(req: NextRequest) {
     let category = (formData.get("category") as string) || "uncategorized";
 
     if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No file uploaded" },
+        { status: 400 }
+      );
     }
 
-    // Just in case something weird comes, normalize to lowercase
+    // normalize category
     category = category.trim().toLowerCase();
 
     const arrayBuffer = await file.arrayBuffer();

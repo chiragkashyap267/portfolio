@@ -318,9 +318,11 @@ export default function AdminPage() {
   return locked ? (
     // LOCKED VIEW
     <div className="min-h-screen bg-[#050506] flex items-center justify-center px-4">
-      <div className="max-w-xl w-full bg-[#071018] border border-slate-800 rounded-xl p-8 shadow-xl">
-        <h2 className="text-2xl font-semibold mb-2 text-white">Admin Access</h2>
-        <p className="text-sm text-slate-300 mb-6">Enter your admin password to unlock the uploader & management tools.</p>
+      <div className="w-full max-w-md sm:max-w-xl bg-[#071018] border border-slate-800 rounded-xl p-6 sm:p-8 shadow-xl">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-2 text-white">Admin Access</h2>
+        <p className="text-xs sm:text-sm text-slate-300 mb-6">
+          Enter your admin password to unlock the uploader & management tools.
+        </p>
 
         <form onSubmit={verifyPassword} className="space-y-4">
           <input
@@ -328,54 +330,59 @@ export default function AdminPage() {
             placeholder="Admin password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 rounded bg-[#041018] border border-slate-800 focus:ring-2 focus:ring-cyan-400 outline-none text-white"
+            className="w-full px-4 py-3 rounded bg-[#041018] border border-slate-800 focus:ring-2 focus:ring-cyan-400 outline-none text-white text-sm"
             autoComplete="new-password"
           />
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <button
               type="submit"
               disabled={checking || !password}
-              className="px-5 py-3 bg-cyan-400 text-black rounded-md font-semibold disabled:opacity-60"
+              className="px-5 py-2.5 sm:py-3 bg-cyan-400 text-black rounded-md font-semibold text-sm disabled:opacity-60"
             >
               {checking ? "Checking…" : "Unlock Admin"}
             </button>
 
-            <Link href="/" className="text-sm text-slate-300 hover:text-white">Back to site</Link>
+            <Link href="/" className="text-xs sm:text-sm text-slate-300 hover:text-white text-center">
+              Back to site
+            </Link>
           </div>
 
-          {error && <div className="text-sm text-red-400 mt-2">{error}</div>}
+          {error && <div className="text-xs sm:text-sm text-red-400 mt-2">{error}</div>}
         </form>
 
-        <div className="mt-6 text-xs text-slate-500">Tip: You only need to unlock once per session.</div>
+        <div className="mt-6 text-[0.7rem] sm:text-xs text-slate-500">
+          Tip: You only need to unlock once per session.
+        </div>
       </div>
     </div>
   ) : (
     // UNLOCKED VIEW
-    <div className="min-h-screen bg-[#050506] p-6">
+    <div className="min-h-screen bg-[#050506] px-4 sm:px-6 py-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-center justify-between">
+        {/* HEADER */}
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-extrabold text-white">Admin dashboard</h1>
-            <div className="text-sm text-slate-400">Uploader & management for portfolio assets</div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-white">Admin dashboard</h1>
+            <div className="text-xs sm:text-sm text-slate-400">
+              Uploader & management for portfolio assets
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <button
               onClick={() => {
                 fetchAllUploads();
                 setToast("Loading all uploads...");
               }}
-              className="px-4 py-2 bg-[#061218] border border-slate-800 rounded-md text-slate-200 hover:bg-[#071222]"
+              className="px-4 py-2 bg-[#061218] border border-slate-800 rounded-md text-xs sm:text-sm text-slate-200 hover:bg-[#071222]"
             >
               Manage uploads
             </button>
 
             <button
-              onClick={() => {
-                lockAdmin();
-              }}
-              className="px-4 py-2 bg-[#071018] border border-slate-800 rounded-md text-slate-200 hover:bg-[#081021]"
+              onClick={lockAdmin}
+              className="px-4 py-2 bg-[#071018] border border-slate-800 rounded-md text-xs sm:text-sm text-slate-200 hover:bg-[#081021]"
               title="Lock admin"
             >
               Lock
@@ -385,29 +392,53 @@ export default function AdminPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* uploader */}
-          <div className="lg:col-span-2 p-6 rounded-xl bg-[#071018] border border-slate-800">
-            <div ref={dropRef} className="rounded-lg p-6 border-2 border-dashed border-slate-800 bg-[#041018]">
-              <div className="flex flex-col md:flex-row gap-6 items-start">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-4">
+          <div className="lg:col-span-2 p-5 sm:p-6 rounded-xl bg-[#071018] border border-slate-800">
+            <div
+              ref={dropRef}
+              className="rounded-lg p-4 sm:p-6 border-2 border-dashed border-slate-800 bg-[#041018]"
+            >
+              <div className="flex flex-col lg:flex-row gap-6 items-start">
+                <div className="flex-1 w-full">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
                     <div>
                       <div className="text-sm text-slate-300">Upload image or video</div>
-                      <div className="text-xs text-slate-500">Supported: png, jpg, webp, mp4, mov</div>
+                      <div className="text-xs text-slate-500">
+                        Supported: png, jpg, webp, mp4, mov
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-400">Category</div>
+                    <div className="text-xs text-slate-400 sm:text-right">Category</div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3 items-center">
-                    <label className="flex items-center gap-3 px-4 py-3 bg-[#0f1720] border border-slate-700 rounded-md cursor-pointer">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v12" stroke="#9EEAFF" strokeWidth="1.5" strokeLinecap="round"/><path d="M8 7l4-4 4 4" stroke="#9EEAFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      <span className="text-sm text-slate-200">Choose file</span>
-                      <input type="file" accept="image/*,video/*" onChange={handleFileChange} className="hidden" />
+                  <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+                    <label className="flex items-center justify-center md:justify-start gap-3 px-4 py-3 bg-[#0f1720] border border-slate-700 rounded-md cursor-pointer text-sm">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M12 3v12"
+                          stroke="#9EEAFF"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                        />
+                        <path
+                          d="M8 7l4-4 4 4"
+                          stroke="#9EEAFF"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <span className="text-slate-200">Choose file</span>
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
                     </label>
 
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="px-4 py-3 bg-[#061218] border border-slate-800 rounded-md text-slate-200"
+                      className="px-4 py-3 bg-[#061218] border border-slate-800 rounded-md text-slate-200 text-sm w-full md:w-auto"
                     >
                       {CATEGORIES.map((c) => (
                         <option key={c.key} value={c.key}>
@@ -419,45 +450,66 @@ export default function AdminPage() {
                     <button
                       onClick={uploadFile}
                       disabled={uploading || !file}
-                      className="px-6 py-3 bg-cyan-400 text-black rounded-md font-semibold shadow hover:brightness-95 disabled:opacity-60"
+                      className="px-5 py-3 bg-cyan-400 text-black rounded-md font-semibold text-sm shadow hover:brightness-95 disabled:opacity-60 w-full md:w-auto"
                     >
                       {uploading ? `Uploading ${progress}%` : "Upload"}
                     </button>
                   </div>
 
                   {file && (
-                    <div className="mt-4 flex items-center gap-4">
-                      <div className="w-28 h-20 rounded-md overflow-hidden bg-black/20 flex items-center justify-center border border-slate-800">
+                    <div className="mt-4 flex flex-col sm:flex-row items-start gap-4">
+                      <div className="w-full sm:w-28 h-40 sm:h-20 rounded-md overflow-hidden bg-black/20 flex items-center justify-center border border-slate-800">
                         {file.type.startsWith("image") ? (
-                          <img src={URL.createObjectURL(file)} className="w-full h-full object-cover" alt="preview" />
+                          <img
+                            src={URL.createObjectURL(file)}
+                            className="w-full h-full object-cover"
+                            alt="preview"
+                          />
                         ) : (
                           <div className="text-xs text-slate-400">Video selected</div>
                         )}
                       </div>
 
-                      <div className="flex-1">
-                        <div className="font-medium text-slate-100">{file.name}</div>
-                        <div className="text-xs text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                      <div className="flex-1 w-full">
+                        <div className="font-medium text-slate-100 text-sm truncate">
+                          {file.name}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                        </div>
 
                         {uploading && (
                           <div className="mt-2 w-full bg-slate-800 rounded h-2 overflow-hidden">
-                            <div style={{ width: `${progress}%` }} className="h-2 bg-cyan-400 transition-all" />
+                            <div
+                              style={{ width: `${progress}%` }}
+                              className="h-2 bg-cyan-400 transition-all"
+                            />
                           </div>
                         )}
 
                         {uploadedUrl && (
-                          <div className="mt-2 text-sm">
+                          <div className="mt-2 text-xs sm:text-sm">
                             Uploaded:{" "}
-                            <a href={uploadedUrl} target="_blank" rel="noreferrer" className="text-cyan-300">
+                            <a
+                              href={uploadedUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-cyan-300 break-all"
+                            >
                               {uploadedUrl}
                             </a>
                           </div>
                         )}
 
-                        {error && <div className="text-sm text-red-400 mt-2">{error}</div>}
+                        {error && (
+                          <div className="text-xs sm:text-sm text-red-400 mt-2">{error}</div>
+                        )}
 
-                        <div className="mt-3 flex gap-2">
-                          <button onClick={resetUploadForm} className="px-3 py-1 text-sm bg-[#0b1220] border border-slate-800 rounded text-slate-200">
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            onClick={resetUploadForm}
+                            className="px-3 py-1.5 text-xs sm:text-sm bg-[#0b1220] border border-slate-800 rounded text-slate-200"
+                          >
                             Reset
                           </button>
                           <button
@@ -466,7 +518,7 @@ export default function AdminPage() {
                               const blobUrl = URL.createObjectURL(file);
                               window.open(blobUrl, "_blank");
                             }}
-                            className="px-3 py-1 text-sm bg-[#0b1220] border border-slate-800 rounded text-slate-200"
+                            className="px-3 py-1.5 text-xs sm:text-sm bg-[#0b1220] border border-slate-800 rounded text-slate-200"
                           >
                             Preview
                           </button>
@@ -476,9 +528,10 @@ export default function AdminPage() {
                   )}
                 </div>
 
-                <div className="w-44 text-sm text-slate-400">
+                {/* Notes block: full-width on mobile, sidebar on large */}
+                <div className="w-full lg:w-48 text-xs sm:text-sm text-slate-400">
                   <div className="font-medium mb-2">Notes</div>
-                  <ul className="list-disc pl-4 space-y-1 text-xs">
+                  <ul className="list-disc pl-4 space-y-1 text-[0.7rem] sm:text-xs">
                     <li>High-res images recommended</li>
                     <li>Videos: mp4/webm (keep under 50MB for quick upload)</li>
                     <li>Set the correct category — used by gallery routes</li>
@@ -490,7 +543,7 @@ export default function AdminPage() {
                         fetchRecent();
                         setToast("Refreshing recent uploads");
                       }}
-                      className="w-full px-3 py-2 bg-[#061218] border border-slate-800 rounded text-slate-200"
+                      className="w-full px-3 py-2 bg-[#061218] border border-slate-800 rounded text-xs sm:text-sm text-slate-200"
                     >
                       Refresh recent
                     </button>
@@ -501,22 +554,26 @@ export default function AdminPage() {
           </div>
 
           {/* Right column: recent uploads */}
-          <aside className="p-6 rounded-xl bg-[#071018] border border-slate-800">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Recent uploads</h3>
+          <aside className="p-5 sm:p-6 rounded-xl bg-[#071018] border border-slate-800">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-semibold text-white text-sm sm:text-base">
+                Recent uploads
+              </h3>
               <button
                 onClick={() => {
                   setToast("Cleared recent preview list");
                   setRecent([]);
                 }}
-                className="text-xs text-slate-400"
+                className="text-[0.7rem] sm:text-xs text-slate-400"
               >
                 Clear
               </button>
             </div>
 
-            <div className="mt-4 space-y-3">
-              {recent.length === 0 && <div className="text-sm text-slate-400">No uploads yet.</div>}
+            <div className="mt-4 space-y-3 max-h-[320px] overflow-y-auto pr-1">
+              {recent.length === 0 && (
+                <div className="text-xs sm:text-sm text-slate-400">No uploads yet.</div>
+              )}
               {recent.map((r, i) => {
                 const id = r.public_id || r.url || i;
                 const deleting = deletingIds.includes(id);
@@ -525,24 +582,34 @@ export default function AdminPage() {
                     {/* THUMB */}
                     <div className="w-14 h-14 rounded overflow-hidden bg-black/40 flex items-center justify-center flex-shrink-0 border border-slate-800">
                       {r.url?.match(/\.(mp4|webm|mov)$/i) ? (
-                        <div className="text-xs text-slate-400">Video</div>
+                        <div className="text-[0.65rem] text-slate-400">Video</div>
                       ) : (
-                        <img src={r.url} className="w-full h-full object-cover" alt="thumb" />
+                        <img
+                          src={r.url}
+                          className="w-full h-full object-cover"
+                          alt="thumb"
+                        />
                       )}
                     </div>
 
-                    {/* MIDDLE: content (truncates long public_id) */}
-                    <div className="flex-1 min-w-0 text-sm">
-                      <div className="font-medium text-slate-100 truncate">{r.public_id}</div>
-                      <div className="text-xs text-slate-400">{new Date(r.createdAt).toLocaleString()}</div>
-                      <div className="text-xs text-cyan-400 mt-1">{r.category}</div>
+                    {/* MIDDLE: content */}
+                    <div className="flex-1 min-w-0 text-xs sm:text-sm">
+                      <div className="font-medium text-slate-100 truncate">
+                        {r.public_id}
+                      </div>
+                      <div className="text-[0.65rem] sm:text-xs text-slate-400">
+                        {new Date(r.createdAt).toLocaleString()}
+                      </div>
+                      <div className="text-[0.7rem] sm:text-xs text-cyan-400 mt-1">
+                        {r.category}
+                      </div>
                     </div>
 
-                    {/* ACTIONS: fixed-size container that won't be pushed out */}
-                    <div className="recent-actions ml-3 flex-shrink-0 flex gap-2 items-start">
+                    {/* ACTIONS */}
+                    <div className="recent-actions ml-1 flex-shrink-0 flex flex-col gap-1">
                       <button
                         onClick={() => window.open(r.url, "_blank")}
-                        className="text-xs px-2 py-1 bg-[#061218] border border-slate-800 rounded text-slate-200 whitespace-nowrap"
+                        className="text-[0.65rem] sm:text-xs px-2 py-1 bg-[#061218] border border-slate-800 rounded text-slate-200 whitespace-nowrap"
                       >
                         Open
                       </button>
@@ -550,7 +617,11 @@ export default function AdminPage() {
                       <button
                         onClick={() => handleDelete(r)}
                         disabled={deleting}
-                        className={`text-xs px-2 py-1 rounded ${deleting ? "bg-red-600/60 text-white" : "bg-red-600 text-white"} whitespace-nowrap`}
+                        className={`text-[0.65rem] sm:text-xs px-2 py-1 rounded ${
+                          deleting
+                            ? "bg-red-600/60 text-white"
+                            : "bg-red-600 text-white"
+                        } whitespace-nowrap`}
                       >
                         {deleting ? "Deleting…" : "Delete"}
                       </button>
@@ -562,27 +633,42 @@ export default function AdminPage() {
           </aside>
         </div>
 
-        {/* Manage all uploads area (expandable) */}
+        {/* Manage all uploads area */}
         {allUploads !== null && (
-          <section className="p-6 rounded-xl bg-[#071018] border border-slate-800">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-white">Manage all uploads</h3>
-              <div className="text-sm text-slate-400">{allUploads.length} items</div>
+          <section className="p-5 sm:p-6 rounded-xl bg-[#071018] border border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+              <h3 className="font-semibold text-white text-sm sm:text-base">
+                Manage all uploads
+              </h3>
+              <div className="text-xs sm:text-sm text-slate-400">
+                {allUploads.length} items
+              </div>
             </div>
 
             {loadingUploads ? (
-              <div className="text-slate-400">Loading...</div>
+              <div className="text-sm text-slate-400">Loading...</div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {allUploads.length === 0 && <div className="text-slate-400">No uploads found.</div>}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {allUploads.length === 0 && (
+                  <div className="text-sm text-slate-400 col-span-full">
+                    No uploads found.
+                  </div>
+                )}
                 {allUploads.map((it: any) => {
                   const id = it.public_id || it.url;
                   const deleting = deletingIds.includes(id);
                   return (
-                    <div key={id} className="p-3 rounded-lg bg-[#041018] border border-slate-800">
-                      <div className="w-full h-40 rounded overflow-hidden bg-black/30 mb-2 flex items-center justify-center">
+                    <div
+                      key={id}
+                      className="p-3 rounded-lg bg-[#041018] border border-slate-800 flex flex-col gap-2"
+                    >
+                      <div className="w-full h-28 sm:h-32 rounded overflow-hidden bg-black/30 flex items-center justify-center mb-1">
                         {it.url?.match(/\.(mp4|webm|mov)$/i) ? (
-                          <video src={it.url} className="w-full h-full object-cover" muted />
+                          <video
+                            src={it.url}
+                            className="w-full h-full object-cover"
+                            muted
+                          />
                         ) : (
                           <img src={it.url} className="w-full h-full object-cover" />
                         )}
@@ -590,14 +676,18 @@ export default function AdminPage() {
 
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="text-sm font-medium text-slate-100 truncate">{it.public_id}</div>
-                          <div className="text-xs text-slate-400">{it.category}</div>
+                          <div className="text-xs sm:text-sm font-medium text-slate-100 truncate">
+                            {it.public_id}
+                          </div>
+                          <div className="text-[0.7rem] sm:text-xs text-slate-400">
+                            {it.category}
+                          </div>
                         </div>
 
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-1">
                           <button
                             onClick={() => window.open(it.url, "_blank")}
-                            className="px-3 py-1 text-xs bg-[#061218] border border-slate-800 rounded text-slate-200"
+                            className="px-2 py-1 text-[0.65rem] sm:text-xs bg-[#061218] border border-slate-800 rounded text-slate-200"
                           >
                             Open
                           </button>
@@ -605,7 +695,11 @@ export default function AdminPage() {
                           <button
                             onClick={() => handleDelete(it)}
                             disabled={deleting}
-                            className={`px-3 py-1 text-xs rounded ${deleting ? "bg-red-600/60 text-white" : "bg-red-600 text-white"}`}
+                            className={`px-2 py-1 text-[0.65rem] sm:text-xs rounded ${
+                              deleting
+                                ? "bg-red-600/60 text-white"
+                                : "bg-red-600 text-white"
+                            }`}
                           >
                             {deleting ? "Deleting…" : "Delete"}
                           </button>
@@ -620,18 +714,18 @@ export default function AdminPage() {
         )}
 
         {/* Controls to show/hide manage area */}
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
           {allUploads === null ? (
             <button
               onClick={() => fetchAllUploads()}
-              className="px-4 py-2 bg-cyan-400 text-black rounded-md font-semibold"
+              className="px-4 py-2 bg-cyan-400 text-black rounded-md font-semibold text-xs sm:text-sm"
             >
               Load all uploads
             </button>
           ) : (
             <button
               onClick={() => setAllUploads(null)}
-              className="px-4 py-2 bg-[#061218] border border-slate-800 rounded-md text-slate-200"
+              className="px-4 py-2 bg-[#061218] border border-slate-800 rounded-md text-xs sm:text-sm text-slate-200"
             >
               Hide uploads
             </button>
@@ -642,7 +736,7 @@ export default function AdminPage() {
               fetchRecent();
               setToast("Refreshed recent");
             }}
-            className="px-4 py-2 bg-[#061218] border border-slate-800 rounded-md text-slate-200"
+            className="px-4 py-2 bg-[#061218] border border-slate-800 rounded-md text-xs sm:text-sm text-slate-200"
           >
             Refresh recent
           </button>
@@ -650,7 +744,7 @@ export default function AdminPage() {
 
         {/* toast */}
         {toast && (
-          <div className="fixed right-6 bottom-6 bg-[#061218] border border-slate-800 px-4 py-2 rounded-md text-slate-200 shadow-lg">
+          <div className="fixed right-4 sm:right-6 bottom-4 sm:bottom-6 bg-[#061218] border border-slate-800 px-4 py-2 rounded-md text-xs sm:text-sm text-slate-200 shadow-lg max-w-xs sm:max-w-sm">
             {toast}
           </div>
         )}
@@ -662,16 +756,14 @@ export default function AdminPage() {
           border-color: rgba(6,182,212,0.48) !important; 
         }
 
-        /* recent-row helper styles to prevent overflow of actions */
         .recent-row { align-items: flex-start; }
         .recent-row img { display: block; }
-        .recent-actions { display: flex; gap: 0.5rem; align-items: center; }
-        .recent-actions button { white-space: nowrap; min-width: 54px; flex-shrink: 0; }
 
-        /* small responsive tweaks */
-        @media (max-width: 640px) {
-          .recent-actions { gap: 0.4rem; }
-          .recent-actions button { padding: 6px 8px; font-size: 12px; }
+        .recent-actions { display: flex; gap: 0.4rem; align-items: center; }
+        .recent-actions button { white-space: nowrap; min-width: 52px; flex-shrink: 0; }
+
+        @media (min-width: 640px) {
+          .recent-actions { flex-direction: row; gap: 0.5rem; }
         }
       `}</style>
     </div>

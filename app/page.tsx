@@ -307,7 +307,7 @@ export default function HomePage() {
                 </Link>
 
                 <a
-                  href="#"
+                  href="/cv.pdf"
                   className="inline-flex items-center justify-center px-6 sm:px-7 py-3 sm:py-3.5 border-2 border-slate-700 rounded-lg text-slate-200 hover:border-cyan-400 hover:bg-cyan-400/5 transition-all font-medium"
                 >
                   Download CV

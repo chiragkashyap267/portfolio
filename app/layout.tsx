@@ -6,6 +6,11 @@ import LenisProvider from "../app/component/LennisProvider";
 export const metadata = {
   title: "GRAPHIXPERT — Portfolio",
   description: "Graphic designer portfolio",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

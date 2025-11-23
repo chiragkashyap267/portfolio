@@ -12,7 +12,6 @@ const CATEGORIES = [
   { key: "videos", label: "Videos" },
   { key: "flyers", label: "Brochure / Flyers" },
   { key: "mockups", label: "Mockups" },
-  
 ];
 
 export default function AdminPage() {
@@ -22,8 +21,8 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
 
-  // UPLOADER STATE
-  const [file, setFile] = useState<File | null>(null);
+  // UPLOADER STATE (MULTIPLE FILES)
+  const [files, setFiles] = useState<File[]>([]);
   const [category, setCategory] = useState(CATEGORIES[0].key);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -71,9 +70,10 @@ export default function AdminPage() {
       e.preventDefault();
       e.stopPropagation();
       el.classList.remove("ring");
-      const f = e.dataTransfer?.files?.[0];
-      if (f) {
-        setFile(f);
+      const list = e.dataTransfer?.files;
+      if (list && list.length > 0) {
+        const arr = Array.from(list);
+        setFiles(arr);
         setUploadedUrl(null);
       }
     };
@@ -88,7 +88,7 @@ export default function AdminPage() {
     };
   }, []);
 
-  // toast
+  // toast auto-hide
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3500);
@@ -121,13 +121,11 @@ export default function AdminPage() {
       // success: store password in-memory and persistent flag
       (window as any).__adminPasswordForUpload = password;
       localStorage.setItem("adminLoggedIn", "1");
-      // notify other tabs
       window.dispatchEvent(new Event("admin:change"));
       setLocked(false);
       setChecking(false);
       setPassword("");
       setToast("Admin unlocked");
-      // fetch recent after unlocking
       fetchRecent();
     } catch (err: any) {
       setError(err.message || "Network error");
@@ -135,7 +133,6 @@ export default function AdminPage() {
     }
   }
 
-  // logout / lock
   function lockAdmin() {
     setLocked(true);
     try {
@@ -150,74 +147,102 @@ export default function AdminPage() {
   // UPLOADER
   // -------------------------
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setFile(e.target.files?.[0] ?? null);
+    const list = e.target.files;
+    const arr = list ? Array.from(list) : [];
+    setFiles(arr);
     setUploadedUrl(null);
   }
 
   function resetUploadForm() {
-    setFile(null);
+    setFiles([]);
     setProgress(0);
     setUploadedUrl(null);
     setError(null);
   }
 
-  function uploadFile() {
-    if (!file) return setError("Choose a file first");
+  async function uploadFiles() {
+    if (!files.length) {
+      setError("Choose at least one file");
+      return;
+    }
     setError(null);
     setUploading(true);
     setProgress(0);
 
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("category", category);
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload", true);
-
     const adminPass = (window as any).__adminPasswordForUpload;
-    if (adminPass) {
-      xhr.setRequestHeader("x-admin-pass", adminPass);
-    } else {
+    if (!adminPass) {
       setUploading(false);
       setError("Admin session expired. Please unlock again.");
       return;
     }
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        setProgress(Math.round((e.loaded / e.total) * 100));
+    const total = files.length;
+    let completed = 0;
+
+    try {
+      for (let i = 0; i < total; i++) {
+        const file = files[i];
+
+        // Upload each file sequentially
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise<void>((resolve) => {
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("category", category);
+
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "/api/upload", true);
+          xhr.setRequestHeader("x-admin-pass", adminPass);
+
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const fileProgress = e.loaded / e.total; // 0–1
+              const overall = ((completed + fileProgress) / total) * 100;
+              setProgress(Math.round(overall));
+            }
+          };
+
+          xhr.onload = function () {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const json = JSON.parse(xhr.responseText);
+                const url = json?.result?.secure_url || json?.result?.url || null;
+                if (url) setUploadedUrl(url); // last uploaded
+              } catch {
+                // ignore parse error
+              }
+            } else {
+              try {
+                const json = JSON.parse(xhr.responseText);
+                setError(json?.error || `Upload failed (${xhr.status})`);
+              } catch {
+                setError(`Upload failed (${xhr.status})`);
+              }
+            }
+            completed += 1;
+            const overall = (completed / total) * 100;
+            setProgress(Math.round(overall));
+            resolve();
+          };
+
+          xhr.onerror = function () {
+            setError("Network error during upload");
+            completed += 1;
+            const overall = (completed / total) * 100;
+            setProgress(Math.round(overall));
+            resolve();
+          };
+
+          xhr.send(fd);
+        });
       }
-    };
 
-    xhr.onload = function () {
+      setToast(`Upload completed (${total} file${total > 1 ? "s" : ""})`);
+      setFiles([]);
+      fetchRecent();
+    } finally {
       setUploading(false);
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const json = JSON.parse(xhr.responseText);
-          const url = json?.result?.secure_url || json?.result?.url || null;
-          setUploadedUrl(url);
-          setFile(null);
-          fetchRecent(); // refresh recent list
-          setToast("Upload completed");
-        } catch {
-          setError("Upload succeeded but server returned unexpected response.");
-        }
-      } else {
-        try {
-          const json = JSON.parse(xhr.responseText);
-          setError(json?.error || `Upload failed (${xhr.status})`);
-        } catch {
-          setError(`Upload failed (${xhr.status})`);
-        }
-      }
-    };
-
-    xhr.onerror = function () {
-      setUploading(false);
-      setError("Network error during upload");
-    };
-
-    xhr.send(fd);
+    }
   }
 
   // -------------------------
@@ -229,7 +254,7 @@ export default function AdminPage() {
       if (!res.ok) return;
       const arr = await res.json();
       setRecent(arr.slice(0, 8));
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
@@ -245,7 +270,7 @@ export default function AdminPage() {
       }
       const arr = await res.json();
       setAllUploads(arr);
-    } catch (e) {
+    } catch {
       setAllUploads(null);
     } finally {
       setLoadingUploads(false);
@@ -259,14 +284,13 @@ export default function AdminPage() {
     return headers;
   }
 
-  // robust delete handler with logs & optimistic UI removal
   async function handleDelete(item: any) {
     const id = item.public_id || item.url;
     if (!id) {
       setToast("Item has no identifier");
       return;
     }
-    if (!confirm("Delete this item? This will remove it from your uploads.json (and Cloudinary if configured).")) return;
+    if (!confirm("Delete this item? This will remove it from Cloudinary & listings.")) return;
 
     setDeletingIds((p) => [...p, id]);
     try {
@@ -282,7 +306,7 @@ export default function AdminPage() {
       let json: any = null;
       try {
         json = text ? JSON.parse(text) : null;
-      } catch (e) {
+      } catch {
         throw new Error(`Server returned non-JSON response (status ${res.status}). Check server logs.`);
       }
 
@@ -290,7 +314,6 @@ export default function AdminPage() {
         throw new Error(json?.error || json?.message || `Delete failed (status ${res.status})`);
       }
 
-      // optimistic UI: remove from recent and allUploads
       setRecent((r) => r.filter((x) => (x.public_id || x.url) !== id));
       setAllUploads((a) => (a ? a.filter((x) => (x.public_id || x.url) !== id) : a));
       setToast("Deleted");
@@ -313,6 +336,7 @@ export default function AdminPage() {
   };
 
   const grouped = groupedByCategory(allUploads);
+  void grouped; // just to avoid unused var warning if not used
 
   // -------------------------
   // UI
@@ -405,7 +429,7 @@ export default function AdminPage() {
                     <div>
                       <div className="text-sm text-slate-300">Upload image or video</div>
                       <div className="text-xs text-slate-500">
-                        Supported: png, jpg, webp, mp4, mov
+                        Supported: png, jpg, webp, mp4, mov (multiple files allowed)
                       </div>
                     </div>
                     <div className="text-xs text-slate-400 sm:text-right">Category</div>
@@ -428,9 +452,10 @@ export default function AdminPage() {
                           strokeLinejoin="round"
                         />
                       </svg>
-                      <span className="text-slate-200">Choose file</span>
+                      <span className="text-slate-200">Choose file(s)</span>
                       <input
                         type="file"
+                        multiple
                         accept="image/*,video/*"
                         onChange={handleFileChange}
                         className="hidden"
@@ -450,34 +475,45 @@ export default function AdminPage() {
                     </select>
 
                     <button
-                      onClick={uploadFile}
-                      disabled={uploading || !file}
+                      onClick={uploadFiles}
+                      disabled={uploading || !files.length}
                       className="px-5 py-3 bg-cyan-400 text-black rounded-md font-semibold text-sm shadow hover:brightness-95 disabled:opacity-60 w-full md:w-auto"
                     >
-                      {uploading ? `Uploading ${progress}%` : "Upload"}
+                      {uploading
+                        ? `Uploading ${progress}%`
+                        : files.length > 1
+                        ? `Upload ${files.length} files`
+                        : "Upload"}
                     </button>
                   </div>
 
-                  {file && (
+                  {files.length > 0 && (
                     <div className="mt-4 flex flex-col sm:flex-row items-start gap-4">
-                      <div className="w-full sm:w-28 h-40 sm:h-20 rounded-md overflow-hidden bg-black/20 flex items-center justify-center border border-slate-800">
-                        {file.type.startsWith("image") ? (
-                          <img
-                            src={URL.createObjectURL(file)}
-                            className="w-full h-full object-cover"
-                            alt="preview"
-                          />
-                        ) : (
-                          <div className="text-xs text-slate-400">Video selected</div>
-                        )}
-                      </div>
+                      {(() => {
+                        const first = files[0];
+                        return (
+                          <div className="w-full sm:w-28 h-40 sm:h-20 rounded-md overflow-hidden bg-black/20 flex items-center justify-center border border-slate-800">
+                            {first.type.startsWith("image") ? (
+                              <img
+                                src={URL.createObjectURL(first)}
+                                className="w-full h-full object-cover"
+                                alt="preview"
+                              />
+                            ) : (
+                              <div className="text-xs text-slate-400">Video selected</div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <div className="flex-1 w-full">
                         <div className="font-medium text-slate-100 text-sm truncate">
-                          {file.name}
+                          {files.length === 1
+                            ? files[0].name
+                            : `${files[0].name} + ${files.length - 1} more`}
                         </div>
                         <div className="text-xs text-slate-400">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                          Total files: {files.length}
                         </div>
 
                         {uploading && (
@@ -491,7 +527,7 @@ export default function AdminPage() {
 
                         {uploadedUrl && (
                           <div className="mt-2 text-xs sm:text-sm">
-                            Uploaded:{" "}
+                            Last uploaded:{" "}
                             <a
                               href={uploadedUrl}
                               target="_blank"
@@ -516,13 +552,13 @@ export default function AdminPage() {
                           </button>
                           <button
                             onClick={() => {
-                              if (!file) return setToast("No file to preview");
-                              const blobUrl = URL.createObjectURL(file);
+                              if (!files.length) return setToast("No file to preview");
+                              const blobUrl = URL.createObjectURL(files[0]);
                               window.open(blobUrl, "_blank");
                             }}
                             className="px-3 py-1.5 text-xs sm:text-sm bg-[#0b1220] border border-slate-800 rounded text-slate-200"
                           >
-                            Preview
+                            Preview first
                           </button>
                         </div>
                       </div>
@@ -530,13 +566,14 @@ export default function AdminPage() {
                   )}
                 </div>
 
-                {/* Notes block: full-width on mobile, sidebar on large */}
+                {/* Notes */}
                 <div className="w-full lg:w-48 text-xs sm:text-sm text-slate-400">
                   <div className="font-medium mb-2">Notes</div>
                   <ul className="list-disc pl-4 space-y-1 text-[0.7rem] sm:text-xs">
                     <li>High-res images recommended</li>
                     <li>Videos: mp4/webm (keep under 50MB for quick upload)</li>
-                    <li>Set the correct category — used by gallery routes</li>
+                    <li>You can select multiple files at once</li>
+                    <li>Make sure the category is correct</li>
                   </ul>
 
                   <div className="mt-4">
@@ -635,7 +672,7 @@ export default function AdminPage() {
           </aside>
         </div>
 
-        {/* Manage all uploads area */}
+        {/* Manage all uploads */}
         {allUploads !== null && (
           <section className="p-5 sm:p-6 rounded-xl bg-[#071018] border border-slate-800">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">

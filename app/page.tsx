@@ -462,7 +462,7 @@ export default function HomePage() {
               EXPERIENCE
             </div>
             <div className="text-3xl sm:text-4xl md:text-5xl font-extrabold bg-gradient-to-br from-cyan-300 to-sky-400 bg-clip-text text-transparent">
-              5+ yrs
+              4+ yrs
             </div>
             <div className="text-slate-400 mt-2 sm:mt-3 text-xs sm:text-sm leading-relaxed">
               Packaging, branding and digital content for e-commerce.

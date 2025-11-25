@@ -1,4 +1,3 @@
-// app/admin/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -14,19 +13,26 @@ const CATEGORIES = [
   { key: "mockups", label: "Mockups" },
 ];
 
+type FileMeta = {
+  id: string;
+  file: File;
+  progress: number;
+  status: "idle" | "uploading" | "done" | "error";
+  error?: string | null;
+  uploadedUrl?: string | null;
+};
+
 export default function AdminPage() {
-  // LOCK / AUTH
+  // AUTH / LOCK
   const [locked, setLocked] = useState(true);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
 
-  // UPLOADER STATE (MULTIPLE FILES)
-  const [files, setFiles] = useState<File[]>([]);
+  // UPLOAD STATE (multiple)
+  const [filesQueue, setFilesQueue] = useState<FileMeta[]>([]);
   const [category, setCategory] = useState(CATEGORIES[0].key);
-  const [progress, setProgress] = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [uploadingAny, setUploadingAny] = useState(false);
 
   // MANAGE / RECENT
   const [recent, setRecent] = useState<any[]>([]);
@@ -36,51 +42,55 @@ export default function AdminPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const dropRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // SIZE LIMITS
+  const MAX_IMAGE = 2 * 1024 * 1024; // 2MB
+  const MAX_VIDEO = 40 * 1024 * 1024; // 40MB
 
   // On mount: check local admin flag
   useEffect(() => {
     const adminLs = typeof window !== "undefined" ? localStorage.getItem("adminLoggedIn") : null;
     if (adminLs === "1") {
       setLocked(false);
-      // window.__adminPasswordForUpload should already be set by prior login flow
     }
   }, []);
 
-  // fetch recent once unlocked
   useEffect(() => {
     if (!locked) fetchRecent();
   }, [locked]);
 
-  // drag/drop visual
+  // drag/drop visual + multi-file drop
   useEffect(() => {
     const el = dropRef.current;
     if (!el) return;
 
-    const onDragOver = (e: DragEvent) => {
+    const prevent = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+    };
+
+    const onDragOver = (e: DragEvent) => {
+      prevent(e);
       el.classList.add("ring");
     };
     const onDragLeave = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+      prevent(e);
       el.classList.remove("ring");
     };
     const onDrop = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+      prevent(e);
       el.classList.remove("ring");
-      const list = e.dataTransfer?.files;
-      if (list && list.length > 0) {
-        const arr = Array.from(list);
-        setFiles(arr);
-        setUploadedUrl(null);
+      const items = e.dataTransfer?.files;
+      if (items && items.length > 0) {
+        handleFilesSelected(Array.from(items));
       }
     };
 
     window.addEventListener("dragover", onDragOver);
     window.addEventListener("dragleave", onDragLeave);
     window.addEventListener("drop", onDrop);
+
     return () => {
       window.removeEventListener("dragover", onDragOver);
       window.removeEventListener("dragleave", onDragLeave);
@@ -88,7 +98,7 @@ export default function AdminPage() {
     };
   }, []);
 
-  // toast auto-hide
+  // toast auto hide
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3500);
@@ -118,7 +128,6 @@ export default function AdminPage() {
         setChecking(false);
         return;
       }
-      // success: store password in-memory and persistent flag
       (window as any).__adminPasswordForUpload = password;
       localStorage.setItem("adminLoggedIn", "1");
       window.dispatchEvent(new Event("admin:change"));
@@ -144,117 +153,160 @@ export default function AdminPage() {
   }
 
   // -------------------------
-  // UPLOADER
+  // FILE SELECT / QUEUE
   // -------------------------
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const list = e.target.files;
-    const arr = list ? Array.from(list) : [];
-    setFiles(arr);
-    setUploadedUrl(null);
+  function handleInputFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    handleFilesSelected(files);
+    // clear input so same file can be re-selected if needed
+    if (inputRef.current) inputRef.current.value = "";
   }
 
-  function resetUploadForm() {
-    setFiles([]);
-    setProgress(0);
-    setUploadedUrl(null);
-    setError(null);
+  function handleFilesSelected(newFiles: File[]) {
+    if (!newFiles || newFiles.length === 0) return;
+    const metas: FileMeta[] = newFiles.map((f) => ({
+      id: `${f.name}-${f.size}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      file: f,
+      progress: 0,
+      status: "idle",
+      error: null,
+      uploadedUrl: null,
+    }));
+
+    // validate sizes/types immediately and mark errors on queue
+    const validated = metas.map((m) => {
+      const isVideo = m.file.type.startsWith("video");
+      const max = isVideo ? MAX_VIDEO : MAX_IMAGE;
+      if (typeof m.file.size === "number" && m.file.size > max) {
+        return {
+          ...m,
+          status: "error" as const,
+          error: `Too large: max ${isVideo ? "40MB" : "2MB"}.`,
+        };
+      }
+      return m;
+    });
+
+    setFilesQueue((prev) => [...prev, ...validated]);
   }
 
-  async function uploadFiles() {
-    if (!files.length) {
-      setError("Choose at least one file");
-      return;
-    }
-    setError(null);
-    setUploading(true);
-    setProgress(0);
+  function removeFromQueue(id: string) {
+    setFilesQueue((p) => p.filter((f) => f.id !== id));
+  }
 
-    const adminPass = (window as any).__adminPasswordForUpload;
-    if (!adminPass) {
-      setUploading(false);
-      setError("Admin session expired. Please unlock again.");
-      return;
-    }
-
-    const total = files.length;
-    let completed = 0;
-
-    try {
-      for (let i = 0; i < total; i++) {
-        const file = files[i];
-
-        // Upload each file sequentially
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise<void>((resolve) => {
-          const fd = new FormData();
-          fd.append("file", file);
-          fd.append("category", category);
-
-          const xhr = new XMLHttpRequest();
-          xhr.open("POST", "/api/upload", true);
-          xhr.setRequestHeader("x-admin-pass", adminPass);
-
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const fileProgress = e.loaded / e.total; // 0–1
-              const overall = ((completed + fileProgress) / total) * 100;
-              setProgress(Math.round(overall));
-            }
-          };
-
-          xhr.onload = function () {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              try {
-                const json = JSON.parse(xhr.responseText);
-                const url = json?.result?.secure_url || json?.result?.url || null;
-                if (url) setUploadedUrl(url); // last uploaded
-              } catch {
-                // ignore parse error
-              }
-            } else {
-              try {
-                const json = JSON.parse(xhr.responseText);
-                setError(json?.error || `Upload failed (${xhr.status})`);
-              } catch {
-                setError(`Upload failed (${xhr.status})`);
-              }
-            }
-            completed += 1;
-            const overall = (completed / total) * 100;
-            setProgress(Math.round(overall));
-            resolve();
-          };
-
-          xhr.onerror = function () {
-            setError("Network error during upload");
-            completed += 1;
-            const overall = (completed / total) * 100;
-            setProgress(Math.round(overall));
-            resolve();
-          };
-
-          xhr.send(fd);
-        });
+  // -------------------------
+  // UPLOAD LOGIC (parallel)
+  // -------------------------
+  function uploadSingle(fileMeta: FileMeta): Promise<FileMeta> {
+    return new Promise((resolve) => {
+      const f = fileMeta.file;
+      const isVideo = f.type.startsWith("video");
+      const max = isVideo ? MAX_VIDEO : MAX_IMAGE;
+      if (typeof f.size === "number" && f.size > max) {
+        // shouldn't happen because validated earlier, but double-check
+        resolve({ ...fileMeta, status: "error", error: `Too large: max ${isVideo ? "40MB" : "2MB"}` });
+        return;
       }
 
-      setToast(`Upload completed (${total} file${total > 1 ? "s" : ""})`);
-      setFiles([]);
-      fetchRecent();
-    } finally {
-      setUploading(false);
+      // prepare form data
+      const fd = new FormData();
+      fd.append("file", f);
+      fd.append("category", category);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/upload", true);
+
+      const adminPass = (window as any).__adminPasswordForUpload;
+      if (adminPass) {
+        xhr.setRequestHeader("x-admin-pass", adminPass);
+      } else {
+        resolve({ ...fileMeta, status: "error", error: "Admin session expired. Unlock admin." });
+        return;
+      }
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          setFilesQueue((prev) => prev.map((p) => (p.id === fileMeta.id ? { ...p, progress: percent, status: "uploading" } : p)));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            const url = json?.result?.secure_url || json?.result?.url || null;
+            setFilesQueue((prev) => prev.map((p) => (p.id === fileMeta.id ? { ...p, progress: 100, status: "done", uploadedUrl: url } : p)));
+            resolve({ ...fileMeta, progress: 100, status: "done", uploadedUrl: url });
+          } catch (err) {
+            setFilesQueue((prev) => prev.map((p) => (p.id === fileMeta.id ? { ...p, status: "error", error: "Invalid server response" } : p)));
+            resolve({ ...fileMeta, status: "error", error: "Invalid server response" });
+          }
+        } else {
+          let msg = `Upload failed (${xhr.status})`;
+          try {
+            const parsed = JSON.parse(xhr.responseText);
+            msg = parsed?.error || parsed?.details || msg;
+          } catch {}
+          setFilesQueue((prev) => prev.map((p) => (p.id === fileMeta.id ? { ...p, status: "error", error: msg } : p)));
+          resolve({ ...fileMeta, status: "error", error: msg });
+        }
+      };
+
+      xhr.onerror = () => {
+        setFilesQueue((prev) => prev.map((p) => (p.id === fileMeta.id ? { ...p, status: "error", error: "Network error" } : p)));
+        resolve({ ...fileMeta, status: "error", error: "Network error" });
+      };
+
+      xhr.send(fd);
+    });
+  }
+
+  async function uploadAll() {
+    if (filesQueue.length === 0) {
+      setToast("No files in queue");
+      return;
     }
+    // Only upload files that are idle (skip ones with error/done)
+    const toUpload = filesQueue.filter((f) => f.status === "idle" || f.status === "error");
+
+    if (toUpload.length === 0) {
+      setToast("No valid files to upload");
+      return;
+    }
+
+    setUploadingAny(true);
+    setToast(`Uploading ${toUpload.length} file(s)...`);
+
+    // Kick off uploads in parallel
+    const promises = toUpload.map((m) => uploadSingle(m));
+
+    // Wait for all to complete
+    const results = await Promise.all(promises);
+
+    // Merge results back into queue
+    setFilesQueue((prev) => {
+      const byId = new Map(results.map((r) => [r.id, r]));
+      return prev.map((p) => (byId.has(p.id) ? byId.get(p.id)! : p));
+    });
+
+    // Refresh recent uploads from server so UI updates
+    await fetchRecent();
+
+    setUploadingAny(false);
+    setToast("Uploads finished");
   }
 
   // -------------------------
-  // MANAGE / DELETE
+  // MANAGE / DELETE / FETCH
   // -------------------------
   async function fetchRecent() {
     try {
       const res = await fetch("/api/uploads");
       if (!res.ok) return;
       const arr = await res.json();
-      setRecent(arr.slice(0, 8));
-    } catch {
+      setRecent(arr.slice(0, 16));
+    } catch (e) {
       // ignore
     }
   }
@@ -270,7 +322,7 @@ export default function AdminPage() {
       }
       const arr = await res.json();
       setAllUploads(arr);
-    } catch {
+    } catch (e) {
       setAllUploads(null);
     } finally {
       setLoadingUploads(false);
@@ -290,7 +342,7 @@ export default function AdminPage() {
       setToast("Item has no identifier");
       return;
     }
-    if (!confirm("Delete this item? This will remove it from Cloudinary & listings.")) return;
+    if (!confirm("Delete this item? This will remove it from your uploads.json (and Cloudinary if configured).")) return;
 
     setDeletingIds((p) => [...p, id]);
     try {
@@ -301,12 +353,10 @@ export default function AdminPage() {
       });
 
       const text = await res.text();
-      console.log("DELETE /api/delete status:", res.status, "responseText:", text);
-
       let json: any = null;
       try {
         json = text ? JSON.parse(text) : null;
-      } catch {
+      } catch (e) {
         throw new Error(`Server returned non-JSON response (status ${res.status}). Check server logs.`);
       }
 
@@ -325,19 +375,6 @@ export default function AdminPage() {
     }
   }
 
-  const groupedByCategory = (arr: any[] | null) => {
-    if (!arr) return {};
-    return arr.reduce((acc: Record<string, any[]>, it: any) => {
-      const k = it.category || "uncategorized";
-      if (!acc[k]) acc[k] = [];
-      acc[k].push(it);
-      return acc;
-    }, {});
-  };
-
-  const grouped = groupedByCategory(allUploads);
-  void grouped; // just to avoid unused var warning if not used
-
   // -------------------------
   // UI
   // -------------------------
@@ -346,9 +383,7 @@ export default function AdminPage() {
     <div className="min-h-screen bg-[#050506] flex items-center justify-center px-4">
       <div className="w-full max-w-md sm:max-w-xl bg-[#071018] border border-slate-800 rounded-xl p-6 sm:p-8 shadow-xl">
         <h2 className="text-xl sm:text-2xl font-semibold mb-2 text-white">Admin Access</h2>
-        <p className="text-xs sm:text-sm text-slate-300 mb-6">
-          Enter your admin password to unlock the uploader & management tools.
-        </p>
+        <p className="text-xs sm:text-sm text-slate-300 mb-6">Enter your admin password to unlock the uploader & management tools.</p>
 
         <form onSubmit={verifyPassword} className="space-y-4">
           <input
@@ -369,17 +404,13 @@ export default function AdminPage() {
               {checking ? "Checking…" : "Unlock Admin"}
             </button>
 
-            <Link href="/" className="text-xs sm:text-sm text-slate-300 hover:text-white text-center">
-              Back to site
-            </Link>
+            <Link href="/" className="text-xs sm:text-sm text-slate-300 hover:text-white text-center">Back to site</Link>
           </div>
 
           {error && <div className="text-xs sm:text-sm text-red-400 mt-2">{error}</div>}
         </form>
 
-        <div className="mt-6 text-[0.7rem] sm:text-xs text-slate-500">
-          Tip: You only need to unlock once per session.
-        </div>
+        <div className="mt-6 text-[0.7rem] sm:text-xs text-slate-500">Tip: You only need to unlock once per session.</div>
       </div>
     </div>
   ) : (
@@ -389,10 +420,8 @@ export default function AdminPage() {
         {/* HEADER */}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white">Admin dashboard</h1>
-            <div className="text-xs sm:text-sm text-slate-400">
-              Uploader & management for portfolio assets
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Admin dashboard</h1>
+            <div className="text-xs sm:text-sm text-slate-400">Uploader & management for portfolio assets</div>
           </div>
 
           <div className="flex flex-wrap gap-2 sm:gap-3">
@@ -417,20 +446,15 @@ export default function AdminPage() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* uploader */}
+          {/* uploader (multi-file) */}
           <div className="lg:col-span-2 p-5 sm:p-6 rounded-xl bg-[#071018] border border-slate-800">
-            <div
-              ref={dropRef}
-              className="rounded-lg p-4 sm:p-6 border-2 border-dashed border-slate-800 bg-[#041018]"
-            >
+            <div ref={dropRef} className="rounded-lg p-4 sm:p-6 border-2 border-dashed border-slate-800 bg-[#041018]">
               <div className="flex flex-col lg:flex-row gap-6 items-start">
                 <div className="flex-1 w-full">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
                     <div>
-                      <div className="text-sm text-slate-300">Upload image or video</div>
-                      <div className="text-xs text-slate-500">
-                        Supported: png, jpg, webp, mp4, mov (multiple files allowed)
-                      </div>
+                      <div className="text-sm text-slate-300">Upload images & videos (multiple)</div>
+                      <div className="text-xs text-slate-500">Images ≤ 2MB, Videos ≤ 40MB. Supported: png, jpg, webp, mp4, mov</div>
                     </div>
                     <div className="text-xs text-slate-400 sm:text-right">Category</div>
                   </div>
@@ -438,28 +462,11 @@ export default function AdminPage() {
                   <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
                     <label className="flex items-center justify-center md:justify-start gap-3 px-4 py-3 bg-[#0f1720] border border-slate-700 rounded-md cursor-pointer text-sm">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M12 3v12"
-                          stroke="#9EEAFF"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                        />
-                        <path
-                          d="M8 7l4-4 4 4"
-                          stroke="#9EEAFF"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
+                        <path d="M12 3v12" stroke="#9EEAFF" strokeWidth="1.5" strokeLinecap="round" />
+                        <path d="M8 7l4-4 4 4" stroke="#9EEAFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      <span className="text-slate-200">Choose file(s)</span>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*,video/*"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
+                      <span className="text-slate-200">Choose files</span>
+                      <input ref={inputRef} multiple type="file" accept="image/*,video/*" onChange={handleInputFiles} className="hidden" />
                     </label>
 
                     <select
@@ -475,117 +482,61 @@ export default function AdminPage() {
                     </select>
 
                     <button
-                      onClick={uploadFiles}
-                      disabled={uploading || !files.length}
+                      onClick={uploadAll}
+                      disabled={uploadingAny || filesQueue.length === 0}
                       className="px-5 py-3 bg-cyan-400 text-black rounded-md font-semibold text-sm shadow hover:brightness-95 disabled:opacity-60 w-full md:w-auto"
                     >
-                      {uploading
-                        ? `Uploading ${progress}%`
-                        : files.length > 1
-                        ? `Upload ${files.length} files`
-                        : "Upload"}
+                      {uploadingAny ? "Uploading…" : "Upload all"}
                     </button>
                   </div>
 
-                  {files.length > 0 && (
-                    <div className="mt-4 flex flex-col sm:flex-row items-start gap-4">
-                      {(() => {
-                        const first = files[0];
-                        return (
-                          <div className="w-full sm:w-28 h-40 sm:h-20 rounded-md overflow-hidden bg-black/20 flex items-center justify-center border border-slate-800">
-                            {first.type.startsWith("image") ? (
-                              <img
-                                src={URL.createObjectURL(first)}
-                                className="w-full h-full object-cover"
-                                alt="preview"
-                              />
-                            ) : (
-                              <div className="text-xs text-slate-400">Video selected</div>
-                            )}
-                          </div>
-                        );
-                      })()}
-
-                      <div className="flex-1 w-full">
-                        <div className="font-medium text-slate-100 text-sm truncate">
-                          {files.length === 1
-                            ? files[0].name
-                            : `${files[0].name} + ${files.length - 1} more`}
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          Total files: {files.length}
+                  {/* queue */}
+                  <div className="mt-4 space-y-3">
+                    {filesQueue.length === 0 && <div className="text-xs text-slate-400">No files added. Drag files here or use Choose files.</div>}
+                    {filesQueue.map((fm) => (
+                      <div key={fm.id} className="flex items-center gap-3 w-full bg-[#04161a] p-3 rounded-md border border-slate-800">
+                        <div className="w-14 h-14 rounded overflow-hidden bg-black/30 flex items-center justify-center flex-shrink-0 border border-slate-800">
+                          {fm.file.type.startsWith("image") ? (
+                            <img src={URL.createObjectURL(fm.file)} className="w-full h-full object-cover" alt="preview" />
+                          ) : (
+                            <div className="text-xs text-slate-400">VID</div>
+                          )}
                         </div>
 
-                        {uploading && (
-                          <div className="mt-2 w-full bg-slate-800 rounded h-2 overflow-hidden">
-                            <div
-                              style={{ width: `${progress}%` }}
-                              className="h-2 bg-cyan-400 transition-all"
-                            />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-sm font-medium text-slate-100 truncate">{fm.file.name}</div>
+                            <div className="text-xs text-slate-400">{(fm.file.size / 1024 / 1024).toFixed(2)} MB</div>
                           </div>
-                        )}
 
-                        {uploadedUrl && (
-                          <div className="mt-2 text-xs sm:text-sm">
-                            Last uploaded:{" "}
-                            <a
-                              href={uploadedUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-cyan-300 break-all"
-                            >
-                              {uploadedUrl}
-                            </a>
+                          <div className="mt-2">
+                            <div className="w-full bg-slate-800 h-2 rounded overflow-hidden">
+                              <div style={{ width: `${fm.progress}%` }} className={`h-2 ${fm.status === "error" ? "bg-red-500" : "bg-cyan-400"} transition-all`} />
+                            </div>
                           </div>
-                        )}
 
-                        {error && (
-                          <div className="text-xs sm:text-sm text-red-400 mt-2">{error}</div>
-                        )}
+                          {fm.status === "error" && <div className="text-xs text-red-400 mt-1">{fm.error}</div>}
+                          {fm.status === "done" && fm.uploadedUrl && <div className="text-xs text-cyan-300 mt-1 break-all">{fm.uploadedUrl}</div>}
+                        </div>
 
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            onClick={resetUploadForm}
-                            className="px-3 py-1.5 text-xs sm:text-sm bg-[#0b1220] border border-slate-800 rounded text-slate-200"
-                          >
-                            Reset
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (!files.length) return setToast("No file to preview");
-                              const blobUrl = URL.createObjectURL(files[0]);
-                              window.open(blobUrl, "_blank");
-                            }}
-                            className="px-3 py-1.5 text-xs sm:text-sm bg-[#0b1220] border border-slate-800 rounded text-slate-200"
-                          >
-                            Preview first
-                          </button>
+                        <div className="flex-shrink-0 flex flex-col gap-2 items-end">
+                          <button onClick={() => removeFromQueue(fm.id)} className="px-2 py-1 text-xs bg-[#0b1220] border border-slate-800 rounded text-slate-200">Remove</button>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
 
-                {/* Notes */}
                 <div className="w-full lg:w-48 text-xs sm:text-sm text-slate-400">
                   <div className="font-medium mb-2">Notes</div>
                   <ul className="list-disc pl-4 space-y-1 text-[0.7rem] sm:text-xs">
-                    <li>High-res images recommended</li>
-                    <li>Videos: mp4/webm (keep under 50MB for quick upload)</li>
-                    <li>You can select multiple files at once</li>
-                    <li>Make sure the category is correct</li>
+                    <li>Images: PNG/JPG/WebP — recommended ≤ 2MB</li>
+                    <li>Videos: MP4/MOV — recommended ≤ 40MB</li>
+                    <li>Category selected will be applied to all files in the batch</li>
                   </ul>
 
                   <div className="mt-4">
-                    <button
-                      onClick={() => {
-                        fetchRecent();
-                        setToast("Refreshing recent uploads");
-                      }}
-                      className="w-full px-3 py-2 bg-[#061218] border border-slate-800 rounded text-xs sm:text-sm text-slate-200"
-                    >
-                      Refresh recent
-                    </button>
+                    <button onClick={() => { fetchRecent(); setToast("Refreshing recent uploads"); }} className="w-full px-3 py-2 bg-[#061218] border border-slate-800 rounded text-xs sm:text-sm text-slate-200">Refresh recent</button>
                   </div>
                 </div>
               </div>
@@ -595,75 +546,31 @@ export default function AdminPage() {
           {/* Right column: recent uploads */}
           <aside className="p-5 sm:p-6 rounded-xl bg-[#071018] border border-slate-800">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="font-semibold text-white text-sm sm:text-base">
-                Recent uploads
-              </h3>
-              <button
-                onClick={() => {
-                  setToast("Cleared recent preview list");
-                  setRecent([]);
-                }}
-                className="text-[0.7rem] sm:text-xs text-slate-400"
-              >
-                Clear
-              </button>
+              <h3 className="font-semibold text-white text-sm sm:text-base">Recent uploads</h3>
+              <button onClick={() => { setToast("Cleared recent preview list"); setRecent([]); }} className="text-[0.7rem] sm:text-xs text-slate-400">Clear</button>
             </div>
 
             <div className="mt-4 space-y-3 max-h-[320px] overflow-y-auto pr-1">
-              {recent.length === 0 && (
-                <div className="text-xs sm:text-sm text-slate-400">No uploads yet.</div>
-              )}
+              {recent.length === 0 && <div className="text-xs sm:text-sm text-slate-400">No uploads yet.</div>}
               {recent.map((r, i) => {
                 const id = r.public_id || r.url || i;
                 const deleting = deletingIds.includes(id);
                 return (
                   <div key={id} className="recent-row flex items-start gap-3 w-full">
-                    {/* THUMB */}
                     <div className="w-14 h-14 rounded overflow-hidden bg-black/40 flex items-center justify-center flex-shrink-0 border border-slate-800">
-                      {r.url?.match(/\.(mp4|webm|mov)$/i) ? (
-                        <div className="text-[0.65rem] text-slate-400">Video</div>
-                      ) : (
-                        <img
-                          src={r.url}
-                          className="w-full h-full object-cover"
-                          alt="thumb"
-                        />
-                      )}
+                      {r.url?.match(/\.(mp4|webm|mov)$/i) ? <div className="text-[0.65rem] text-slate-400">Video</div> : <img src={r.url} className="w-full h-full object-cover" alt="thumb" />}
                     </div>
 
-                    {/* MIDDLE: content */}
                     <div className="flex-1 min-w-0 text-xs sm:text-sm">
-                      <div className="font-medium text-slate-100 truncate">
-                        {r.public_id}
-                      </div>
-                      <div className="text-[0.65rem] sm:text-xs text-slate-400">
-                        {new Date(r.createdAt).toLocaleString()}
-                      </div>
-                      <div className="text-[0.7rem] sm:text-xs text-cyan-400 mt-1">
-                        {r.category}
-                      </div>
+                      <div className="font-medium text-slate-100 truncate">{r.public_id}</div>
+                      <div className="text-[0.65rem] sm:text-xs text-slate-400">{new Date(r.createdAt).toLocaleString()}</div>
+                      <div className="text-[0.7rem] sm:text-xs text-cyan-400 mt-1">{r.category}</div>
                     </div>
 
-                    {/* ACTIONS */}
                     <div className="recent-actions ml-1 flex-shrink-0 flex flex-col gap-1">
-                      <button
-                        onClick={() => window.open(r.url, "_blank")}
-                        className="text-[0.65rem] sm:text-xs px-2 py-1 bg-[#061218] border border-slate-800 rounded text-slate-200 whitespace-nowrap"
-                      >
-                        Open
-                      </button>
+                      <button onClick={() => window.open(r.url, "_blank")} className="text-[0.65rem] sm:text-xs px-2 py-1 bg-[#061218] border border-slate-800 rounded text-slate-200 whitespace-nowrap">Open</button>
 
-                      <button
-                        onClick={() => handleDelete(r)}
-                        disabled={deleting}
-                        className={`text-[0.65rem] sm:text-xs px-2 py-1 rounded ${
-                          deleting
-                            ? "bg-red-600/60 text-white"
-                            : "bg-red-600 text-white"
-                        } whitespace-nowrap`}
-                      >
-                        {deleting ? "Deleting…" : "Delete"}
-                      </button>
+                      <button onClick={() => handleDelete(r)} disabled={deleting} className={`text-[0.65rem] sm:text-xs px-2 py-1 rounded ${deleting ? "bg-red-600/60 text-white" : "bg-red-600 text-white"}`}>{deleting ? "Deleting…" : "Delete"}</button>
                     </div>
                   </div>
                 );
@@ -672,76 +579,38 @@ export default function AdminPage() {
           </aside>
         </div>
 
-        {/* Manage all uploads */}
+        {/* Manage all uploads area */}
         {allUploads !== null && (
           <section className="p-5 sm:p-6 rounded-xl bg-[#071018] border border-slate-800">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-              <h3 className="font-semibold text-white text-sm sm:text-base">
-                Manage all uploads
-              </h3>
-              <div className="text-xs sm:text-sm text-slate-400">
-                {allUploads.length} items
-              </div>
+              <h3 className="font-semibold text-white text-sm sm:text-base">Manage all uploads</h3>
+              <div className="text-xs sm:text-sm text-slate-400">{allUploads.length} items</div>
             </div>
 
             {loadingUploads ? (
               <div className="text-sm text-slate-400">Loading...</div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {allUploads.length === 0 && (
-                  <div className="text-sm text-slate-400 col-span-full">
-                    No uploads found.
-                  </div>
-                )}
+                {allUploads.length === 0 && <div className="text-sm text-slate-400 col-span-full">No uploads found.</div>}
                 {allUploads.map((it: any) => {
                   const id = it.public_id || it.url;
                   const deleting = deletingIds.includes(id);
                   return (
-                    <div
-                      key={id}
-                      className="p-3 rounded-lg bg-[#041018] border border-slate-800 flex flex-col gap-2"
-                    >
+                    <div key={id} className="p-3 rounded-lg bg-[#041018] border border-slate-800 flex flex-col gap-2">
                       <div className="w-full h-28 sm:h-32 rounded overflow-hidden bg-black/30 flex items-center justify-center mb-1">
-                        {it.url?.match(/\.(mp4|webm|mov)$/i) ? (
-                          <video
-                            src={it.url}
-                            className="w-full h-full object-cover"
-                            muted
-                          />
-                        ) : (
-                          <img src={it.url} className="w-full h-full object-cover" />
-                        )}
+                        {it.url?.match(/\.(mp4|webm|mov)$/i) ? <video src={it.url} className="w-full h-full object-cover" muted /> : <img src={it.url} className="w-full h-full object-cover" />}
                       </div>
 
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="text-xs sm:text-sm font-medium text-slate-100 truncate">
-                            {it.public_id}
-                          </div>
-                          <div className="text-[0.7rem] sm:text-xs text-slate-400">
-                            {it.category}
-                          </div>
+                          <div className="text-xs sm:text-sm font-medium text-slate-100 truncate">{it.public_id}</div>
+                          <div className="text-[0.7rem] sm:text-xs text-slate-400">{it.category}</div>
                         </div>
 
                         <div className="flex flex-col gap-1">
-                          <button
-                            onClick={() => window.open(it.url, "_blank")}
-                            className="px-2 py-1 text-[0.65rem] sm:text-xs bg-[#061218] border border-slate-800 rounded text-slate-200"
-                          >
-                            Open
-                          </button>
+                          <button onClick={() => window.open(it.url, "_blank")} className="px-2 py-1 text-[0.65rem] sm:text-xs bg-[#061218] border border-slate-800 rounded text-slate-200">Open</button>
 
-                          <button
-                            onClick={() => handleDelete(it)}
-                            disabled={deleting}
-                            className={`px-2 py-1 text-[0.65rem] sm:text-xs rounded ${
-                              deleting
-                                ? "bg-red-600/60 text-white"
-                                : "bg-red-600 text-white"
-                            }`}
-                          >
-                            {deleting ? "Deleting…" : "Delete"}
-                          </button>
+                          <button onClick={() => handleDelete(it)} disabled={deleting} className={`px-2 py-1 text-[0.65rem] sm:text-xs rounded ${deleting ? "bg-red-600/60 text-white" : "bg-red-600 text-white"}`}>{deleting ? "Deleting…" : "Delete"}</button>
                         </div>
                       </div>
                     </div>
@@ -752,58 +621,26 @@ export default function AdminPage() {
           </section>
         )}
 
-        {/* Controls to show/hide manage area */}
         <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
           {allUploads === null ? (
-            <button
-              onClick={() => fetchAllUploads()}
-              className="px-4 py-2 bg-cyan-400 text-black rounded-md font-semibold text-xs sm:text-sm"
-            >
-              Load all uploads
-            </button>
+            <button onClick={() => fetchAllUploads()} className="px-4 py-2 bg-cyan-400 text-black rounded-md font-semibold text-xs sm:text-sm">Load all uploads</button>
           ) : (
-            <button
-              onClick={() => setAllUploads(null)}
-              className="px-4 py-2 bg-[#061218] border border-slate-800 rounded-md text-xs sm:text-sm text-slate-200"
-            >
-              Hide uploads
-            </button>
+            <button onClick={() => setAllUploads(null)} className="px-4 py-2 bg-[#061218] border border-slate-800 rounded-md text-xs sm:text-sm text-slate-200">Hide uploads</button>
           )}
 
-          <button
-            onClick={() => {
-              fetchRecent();
-              setToast("Refreshed recent");
-            }}
-            className="px-4 py-2 bg-[#061218] border border-slate-800 rounded-md text-xs sm:text-sm text-slate-200"
-          >
-            Refresh recent
-          </button>
+          <button onClick={() => { fetchRecent(); setToast("Refreshed recent"); }} className="px-4 py-2 bg-[#061218] border border-slate-800 rounded-md text-xs sm:text-sm text-slate-200">Refresh recent</button>
         </div>
 
-        {/* toast */}
-        {toast && (
-          <div className="fixed right-4 sm:right-6 bottom-4 sm:bottom-6 bg-[#061218] border border-slate-800 px-4 py-2 rounded-md text-xs sm:text-sm text-slate-200 shadow-lg max-w-xs sm:max-w-sm">
-            {toast}
-          </div>
-        )}
+        {toast && <div className="fixed right-4 sm:right-6 bottom-4 sm:bottom-6 bg-[#061218] border border-slate-800 px-4 py-2 rounded-md text-xs sm:text-sm text-slate-200 shadow-lg max-w-xs sm:max-w-sm">{toast}</div>}
       </div>
 
       <style>{`
-        .ring { 
-          box-shadow: 0 8px 40px rgba(6,182,212,0.18); 
-          border-color: rgba(6,182,212,0.48) !important; 
-        }
-
+        .ring { box-shadow: 0 8px 40px rgba(6,182,212,0.18); border-color: rgba(6,182,212,0.48) !important; }
         .recent-row { align-items: flex-start; }
         .recent-row img { display: block; }
-
         .recent-actions { display: flex; gap: 0.4rem; align-items: center; }
         .recent-actions button { white-space: nowrap; min-width: 52px; flex-shrink: 0; }
-
-        @media (min-width: 640px) {
-          .recent-actions { flex-direction: row; gap: 0.5rem; }
-        }
+        @media (min-width: 640px) { .recent-actions { flex-direction: row; gap: 0.5rem; } }
       `}</style>
     </div>
   );

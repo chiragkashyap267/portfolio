@@ -70,10 +70,30 @@ export default function HomePage() {
 
     if (isCoarse) {
       setTiltStyle({
-        transform: "perspective(1400px) rotateX(8deg) rotateY(-10deg) scale(1.04)",
+        transform:
+          "perspective(1400px) rotateX(8deg) rotateY(-10deg) scale(1.04)",
       });
       return;
     }
+
+    // Desktop: idle floating animation even without hover
+    let frameId: number;
+    const start = performance.now();
+
+    const animate = (time: number) => {
+      // when not hovered, do a gentle idle orbit
+      if (!hovered) {
+        const t = (time - start) / 1000;
+        const idleX = Math.sin(t * 0.8) * 6; // rotateX
+        const idleY = Math.cos(t * 0.9) * 6; // rotateY
+        setTiltStyle({
+          transform: `perspective(1400px) rotateX(${idleX}deg) rotateY(${idleY}deg) scale(1.06)`,
+        });
+      }
+      frameId = requestAnimationFrame(animate);
+    };
+
+    frameId = requestAnimationFrame(animate);
 
     function onMove(e: MouseEvent) {
       const current = heroRef.current;
@@ -103,6 +123,7 @@ export default function HomePage() {
     return () => {
       el.removeEventListener("mousemove", onMove);
       el.removeEventListener("mouseleave", onLeave);
+      cancelAnimationFrame(frameId);
     };
   }, [hovered]);
 
@@ -182,6 +203,22 @@ export default function HomePage() {
           background: linear-gradient(135deg, rgba(4,16,24,0.95), rgba(8,24,40,0.95), rgba(6,182,212,0.08));
         }
 
+        /* timeline nodes pulse */
+        @keyframes nodePulse {
+          0%, 100% { transform: translate(-50%, 0) scale(1); opacity: 0.9; }
+          50% { transform: translate(-50%, 0) scale(1.2); opacity: 1; }
+        }
+
+        .timeline-node-pulse::after {
+          content: "";
+          position: absolute;
+          inset: -6px;
+          border-radius: 9999px;
+          border: 1px solid rgba(34,211,238,0.65);
+          opacity: 0.7;
+          animation: nodePulse 2.8s ease-out infinite;
+        }
+
         /* MOBILE-ONLY 3D / MOTION */
         @keyframes heroMobileOrbit {
           0% {
@@ -202,18 +239,17 @@ export default function HomePage() {
         }
 
         /* Desktop spacing for experience timeline */
-@media (min-width: 1024px) {
-  .experience-wrapper .exp-card {
-    margin-top: 1rem; /* small additional gap */
-    padding-left: 10px;
-    padding-right: 10px;
-  }
+        @media (min-width: 1024px) {
+          .experience-wrapper .exp-card {
+            margin-top: 1rem;
+            padding-left: 10px;
+            padding-right: 10px;
+          }
 
-  .timeline-line {
-    margin-top: 10px;
-  }
-}
-
+          .timeline-line {
+            margin-top: 10px;
+          }
+        }
 
         @media (max-width: 768px) {
           /* hero: animated 3D orbit on mobile */
@@ -238,26 +274,22 @@ export default function HomePage() {
         }
 
         /* Desktop spacing between cards and the center line */
-@media (min-width: 1024px) {
-  .exp-card {
-    position: relative;
-  }
+        @media (min-width: 1024px) {
+          .exp-card {
+            position: relative;
+          }
 
-  /* LEFT side cards */
-  .exp-card:nth-child(odd) > div:first-child {
-    transform: translateX(-60px); /* moves card away from line */
-  }
+          /* LEFT side cards */
+          .exp-card:nth-child(odd) > div:first-child {
+            transform: translateX(-60px);
+          }
 
-  /* RIGHT side cards */
-  .exp-card:nth-child(even) > div:first-child {
-    transform: translateX(60px); /* moves card away from line */
-  }
-}
-
-
-      `
-      
-      }</style>
+          /* RIGHT side cards */
+          .exp-card:nth-child(even) > div:first-child {
+            transform: translateX(60px);
+          }
+        }
+      `}</style>
 
       {/* HERO */}
       <section className="relative overflow-hidden">
@@ -275,9 +307,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24 lg:py-32">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
             {/* Left */}
-            <div className="space-y-5 text-center lg:text-left">
-              {/* NEW: GraphiXPERT brand line */}
-              
+            <div className="space-y-5 text-center lg:text-left animate-[subtleFadeUp_700ms_ease-out]">
               <div className="text-xs sm:text-sm text-slate-400 uppercase tracking-widest">
                 Open to work • Graphic Designer
               </div>
@@ -333,7 +363,8 @@ export default function HomePage() {
                 className="absolute -inset-32 z-0 rounded-full pointer-events-none"
                 style={{
                   filter: "blur(180px)",
-                  background: "radial-gradient(circle at 60% 30%, rgba(6,182,212,0.12), transparent 30%)",
+                  background:
+                    "radial-gradient(circle at 60% 30%, rgba(6,182,212,0.12), transparent 30%)",
                   width: "980px",
                   height: "980px",
                 }}
@@ -347,6 +378,7 @@ export default function HomePage() {
                   ...tiltStyle,
                   transformStyle: "preserve-3d",
                   WebkitTransformStyle: "preserve-3d",
+                  transition: "transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1)",
                 }}
                 className="hero-card relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 lg:w-[420px] lg:h-[420px] rounded-3xl overflow-hidden bg-[#050815] border border-slate-800 shadow-2xl"
               >
@@ -418,10 +450,12 @@ export default function HomePage() {
           </h2>
 
           <div className="relative">
-            <div className="absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0 w-[3px] sm:w-[4px] bg-gradient-to-b from-cyan-400 via-slate-700 to-slate-800 timeline-line rounded" />
+            {/* central line */}
+            <div className="absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0 w-[3px] sm:w-[4px] bg-gradient-to-b from-cyan-400 via-slate-700 to-slate-900 timeline-line rounded" />
 
+            {/* moving glow */}
             <div className="absolute left-1/2 -translate-x-1/2 top-0">
-              <div className="w-1.5 sm:w-2 h-[26vh] sm:h-[28vh] lg:h-[30vh] rounded-full bg-gradient-to-b from-cyan-300 to-transparent opacity-95 animate-[expGlow_6s_linear_infinite]" />
+              <div className="w-1.5 sm:w-2 h-[40vh] sm:h-[45vh] lg:h-[50vh] rounded-full bg-gradient-to-b from-cyan-300 to-transparent opacity-95 animate-[expGlow_6s_linear_infinite]" />
             </div>
 
             <div className="experience-wrapper space-y-12 sm:space-y-16 mt-6">
@@ -445,7 +479,7 @@ export default function HomePage() {
                       <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{ex.desc}</p>
                     </div>
 
-                    <div className="hidden md:block w-5 h-5 rounded-full bg-gradient-to-br from-cyan-400 to-sky-500 absolute left-1/2 -translate-x-1/2 top-7 shadow-[0_0_26px_rgba(34,211,238,0.4)] ring-4 ring-[#020617]" />
+                    <div className="hidden md:block w-5 h-5 rounded-full bg-gradient-to-br from-cyan-400 to-sky-500 absolute left-1/2 -translate-x-1/2 top-7 shadow-[0_0_26px_rgba(34,211,238,0.4)] ring-4 ring-[#020617] timeline-node-pulse" />
 
                     <div className="md:w-5/12" />
                   </div>

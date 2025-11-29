@@ -22,6 +22,7 @@ type FileMeta = {
   uploadedUrl?: string | null;
 };
 
+
 export default function AdminPage() {
   // AUTH / LOCK
   const [locked, setLocked] = useState(true);
@@ -29,10 +30,12 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
 
+
   // UPLOAD STATE (multiple)
   const [filesQueue, setFilesQueue] = useState<FileMeta[]>([]);
   const [category, setCategory] = useState(CATEGORIES[0].key);
   const [uploadingAny, setUploadingAny] = useState(false);
+
 
   // MANAGE / RECENT
   const [recent, setRecent] = useState<any[]>([]);
@@ -40,6 +43,7 @@ export default function AdminPage() {
   const [loadingUploads, setLoadingUploads] = useState(false);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+
 
   const dropRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -56,9 +60,11 @@ export default function AdminPage() {
     }
   }, []);
 
+
   useEffect(() => {
     if (!locked) fetchRecent();
   }, [locked]);
+
 
   // drag/drop visual + multi-file drop
   useEffect(() => {

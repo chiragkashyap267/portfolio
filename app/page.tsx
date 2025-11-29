@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 
 export default function HomePage() {
   const marqueeSkills = [
@@ -62,7 +61,6 @@ export default function HomePage() {
     const el = heroRef.current;
     if (!el) return;
 
-    // On phones/tablets (coarse pointer) -> base 3D pose, CSS animation handles movement
     const isCoarse =
       typeof window !== "undefined" &&
       window.matchMedia &&
@@ -70,8 +68,7 @@ export default function HomePage() {
 
     if (isCoarse) {
       setTiltStyle({
-        transform:
-          "perspective(1400px) rotateX(8deg) rotateY(-10deg) scale(1.04)",
+        transform: "perspective(1400px) rotateX(8deg) rotateY(-10deg) scale(1.04)",
       });
       return;
     }
@@ -81,11 +78,10 @@ export default function HomePage() {
     const start = performance.now();
 
     const animate = (time: number) => {
-      // when not hovered, do a gentle idle orbit
       if (!hovered) {
         const t = (time - start) / 1000;
-        const idleX = Math.sin(t * 0.8) * 6; // rotateX
-        const idleY = Math.cos(t * 0.9) * 6; // rotateY
+        const idleX = Math.sin(t * 0.8) * 6;
+        const idleY = Math.cos(t * 0.9) * 6;
         setTiltStyle({
           transform: `perspective(1400px) rotateX(${idleX}deg) rotateY(${idleY}deg) scale(1.06)`,
         });
@@ -129,167 +125,232 @@ export default function HomePage() {
 
   return (
     <main className="bg-[#050506] text-slate-100 antialiased">
-      <style>{`
-        /* marquee animation */
-        @keyframes marquee { 0% { transform: translateX(0%);} 100% { transform: translateX(-50%);} }
+<style>{`
+  /* marquee animation */
+  @keyframes marquee { 0% { transform: translateX(0%);} 100% { transform: translateX(-50%);} }
 
-        .marquee-clip {
-          overflow-x: hidden;
-          overflow-y: hidden;
-          padding: 16px 0;
-          position: relative;
-        }
-        .marquee-clip::-webkit-scrollbar { display: none; }
+  .marquee-clip {
+    overflow-x: hidden;
+    overflow-y: hidden;
+    padding: 16px 0;
+    position: relative;
+  }
+  .marquee-clip::-webkit-scrollbar { display: none; }
 
-        /* base marquee speed (desktop) */
-        .marquee-track {
-          animation: marquee 28s linear infinite;
-        }
+  /* base marquee speed (desktop) */
+  .marquee-track { animation: marquee 28s linear infinite; }
 
-        /* vertical glow traveling down the timeline */
-        @keyframes expGlow { 0% { transform: translateY(-30%); opacity:0 } 8% { opacity:1 } 100% { transform: translateY(120%); opacity:0 } }
-        @keyframes subtleFadeUp { 0%{opacity:0; transform: translateY(8px);} 100%{opacity:1; transform: translateY(0);} }
+  /* smoother vertical glow for the central line (used as separate element) */
+  @keyframes expGlow {
+    0%   { transform: translateY(-120%); opacity: 0; filter: blur(20px); }
+    15%  { opacity: 0.85; filter: blur(14px); }
+    45%  { transform: translateY(10%); opacity: 1; filter: blur(10px); }
+    78%  { opacity: 0.75; filter: blur(16px); }
+    100% { transform: translateY(220%); opacity: 0; filter: blur(22px); }
+  }
 
-        .glow-cyan { text-shadow: 0 0 14px rgba(6,182,212,0.18), 0 0 34px rgba(6,182,212,0.08); }
-        .hero-glow-layer { filter: blur(80px); opacity: 0.9; will-change: transform, opacity; }
+  @keyframes subtleFadeUp { 0%{opacity:0; transform: translateY(8px);} 100%{opacity:1; transform: translateY(0);} }
 
-        .hero:hover .hero-rim {
-          box-shadow: 0 40px 140px rgba(6,182,212,0.20), inset 0 0 60px rgba(6,182,212,0.06);
-        }
+  .glow-cyan { text-shadow: 0 0 14px rgba(6,182,212,0.18), 0 0 34px rgba(6,182,212,0.08); }
+  .hero-glow-layer { filter: blur(80px); opacity: 0.9; will-change: transform, opacity; }
 
-        .exp-card { opacity: 0; animation: subtleFadeUp 520ms ease-out forwards; }
-        .timeline-line { box-shadow: 0 0 90px rgba(6,182,212,0.06); }
+  .hero:hover .hero-rim {
+    box-shadow: 0 40px 140px rgba(6,182,212,0.20), inset 0 0 60px rgba(6,182,212,0.06);
+  }
 
-        .skill-circle { transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease; }
-        .skill-circle:hover { transform: translateY(-8px) scale(1.06); box-shadow: 0 30px 80px rgba(6,182,212,0.10); border-color: rgba(6,182,212,0.25); }
+  .exp-card { opacity: 0; animation: subtleFadeUp 520ms ease-out forwards; }
+  .timeline-line { box-shadow: 0 0 90px rgba(6,182,212,0.06); }
 
-        /* marquee pills */
-        .marquee-skill { 
-          transition: transform 260ms ease, box-shadow 260ms ease, background 260ms ease; 
-          -webkit-tap-highlight-color: transparent;
-        }
-        .marquee-skill:hover {
-          background: rgba(6,182,212,0.12);
-          border-color: rgba(6,182,212,0.35);
-          transform: scale(1.12);
-          box-shadow: 0 18px 40px rgba(6,182,212,0.18);
-        }
-        .marquee-skill .skill-dot {
-          transition: background 260ms ease, box-shadow 260ms ease;
-        }
-        .marquee-skill:hover .skill-dot {
-          background: rgb(34,211,238);
-          box-shadow: 0 0 18px rgba(34,211,238,0.55);
-        }
-        .marquee-skill:focus,
-        .marquee-skill:active { outline: none; box-shadow: 0 12px 26px rgba(6,182,212,0.12); }
+  .skill-circle { transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease; }
+  .skill-circle:hover { transform: translateY(-8px) scale(1.06); box-shadow: 0 30px 80px rgba(6,182,212,0.10); border-color: rgba(6,182,212,0.25); }
 
-        /* hex stats */
-        .hex {
-          background: linear-gradient(135deg, rgba(4,16,24,0.95), rgba(8,24,40,0.95));
-          border: 1px solid rgba(100,116,139,0.35);
-          position: relative;
-          transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
-          backdrop-filter: blur(10px);
-        }
-        .hex:hover {
-          transform: translateY(-8px) scale(1.01);
-          border-color: rgba(6,182,212,0.5);
-          box-shadow: 
-            0 0 40px rgba(6,182,212,0.3),
-            0 0 80px rgba(6,182,212,0.15),
-            0 20px 60px rgba(6,182,212,0.2),
-            inset 0 0 60px rgba(6,182,212,0.05);
-          background: linear-gradient(135deg, rgba(4,16,24,0.95), rgba(8,24,40,0.95), rgba(6,182,212,0.08));
-        }
+  /* marquee pills */
+  .marquee-skill {
+    transition: transform 260ms ease, box-shadow 260ms ease, background 260ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .marquee-skill:hover {
+    background: rgba(6,182,212,0.12);
+    border-color: rgba(6,182,212,0.35);
+    transform: scale(1.12);
+    box-shadow: 0 18px 40px rgba(6,182,212,0.18);
+  }
+  .marquee-skill .skill-dot { transition: background 260ms ease, box-shadow 260ms ease; }
+  .marquee-skill:hover .skill-dot {
+    background: rgb(34,211,238);
+    box-shadow: 0 0 18px rgba(34,211,238,0.55);
+  }
+  .marquee-skill:focus,
+  .marquee-skill:active { outline: none; box-shadow: 0 12px 26px rgba(6,182,212,0.12); }
 
-        /* timeline nodes pulse */
-        @keyframes nodePulse {
-          0%, 100% { transform: translate(-50%, 0) scale(1); opacity: 0.9; }
-          50% { transform: translate(-50%, 0) scale(1.2); opacity: 1; }
-        }
+  /* hex stats */
+  .hex {
+    background: linear-gradient(135deg, rgba(4,16,24,0.95), rgba(8,24,40,0.95));
+    border: 1px solid rgba(100,116,139,0.35);
+    position: relative;
+    transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+  }
+  .hex:hover {
+    transform: translateY(-8px) scale(1.01);
+    border-color: rgba(6,182,212,0.5);
+    box-shadow:
+      0 0 40px rgba(6,182,212,0.3),
+      0 0 80px rgba(6,182,212,0.15),
+      0 20px 60px rgba(6,182,212,0.2),
+      inset 0 0 60px rgba(6,182,212,0.05);
+    background: linear-gradient(135deg, rgba(4,16,24,0.95), rgba(8,24,40,0.95), rgba(6,182,212,0.08));
+  }
 
-        .timeline-node-pulse::after {
-          content: "";
-          position: absolute;
-          inset: -6px;
-          border-radius: 9999px;
-          border: 1px solid rgba(34,211,238,0.65);
-          opacity: 0.7;
-          animation: nodePulse 2.8s ease-out infinite;
-        }
+  /* node pulse animation */
+  @keyframes nodePulse {
+    0% { transform: scale(1); opacity: 0.75; }
+    40% { transform: scale(1.6); opacity: 0.18; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
 
-        /* MOBILE-ONLY 3D / MOTION */
-        @keyframes heroMobileOrbit {
-          0% {
-            transform: perspective(1400px) rotateX(8deg) rotateY(-10deg) translateY(0) scale(1.04);
-          }
-          50% {
-            transform: perspective(1400px) rotateX(4deg) rotateY(-2deg) translateY(-10px) scale(1.06);
-          }
-          100% {
-            transform: perspective(1400px) rotateX(8deg) rotateY(-10deg) translateY(0) scale(1.04);
-          }
-        }
+  /* hero mobile orbit + skill bob */
+  @keyframes heroMobileOrbit {
+    0% { transform: perspective(1400px) rotateX(8deg) rotateY(-10deg) translateY(0) scale(1.04); }
+    50% { transform: perspective(1400px) rotateX(4deg) rotateY(-2deg) translateY(-10px) scale(1.06); }
+    100% { transform: perspective(1400px) rotateX(8deg) rotateY(-10deg) translateY(0) scale(1.04); }
+  }
+  @keyframes skillBob {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+    100% { transform: translateY(0); }
+  }
 
-        @keyframes skillBob {
-          0% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-          100% { transform: translateY(0); }
-        }
+  /* ---------- Layout behaviour ---------- */
 
-        /* Desktop spacing for experience timeline */
-        @media (min-width: 1024px) {
-          .experience-wrapper .exp-card {
-            margin-top: 1rem;
-            padding-left: 10px;
-            padding-right: 10px;
-          }
+  /* make the experience-wrapper the positioned container for nodes / line */
+  .experience-wrapper { position: relative; }
 
-          .timeline-line {
-            margin-top: 10px;
-          }
-        }
+  /* default (mobile-first) stacked layout */
+  .exp-card { position: relative; }
+  .exp-card-content { margin-left: 0; margin-right: 0; width: auto; }
 
-        @media (max-width: 768px) {
-          /* hero: animated 3D orbit on mobile */
-          .hero-card {
-            animation: heroMobileOrbit 10s ease-in-out infinite;
-          }
+  /* center line default: left side on mobile */
+  .timeline-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 1.4rem;
+    width: 2px;
+    border-radius: 6px;
+    background: linear-gradient(to bottom, rgba(34,211,238,0.95), rgba(30,41,59,0.85));
+    box-shadow: 0 0 36px rgba(34,211,238,0.18);
+    z-index: 10;
+    transform: none;
+  }
 
-          /* experience section spacing smaller on mobile */
-          .experience-wrapper {
-            min-height: 0;
-          }
+  /* the node (center dot) — single element per card */
+  .timeline-node {
+    position: absolute;
+    top: 16px; /* entry default, overridden for desktop vertical centering */
+    left: 1.4rem; /* mobile alignment */
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    background: radial-gradient(circle at 30% 30%, rgba(34,211,238,1), rgba(6,182,212,0.95));
+    box-shadow: 0 6px 24px rgba(6,182,212,0.36), inset 0 -4px 8px rgba(0,0,0,0.35);
+    border: 2px solid rgba(2,6,8,0.9);
+    z-index: 30;
+    transform: translate(-50%, -50%);
+  }
 
-          /* skills: subtle bob animation on mobile */
-          .skill-circle {
-            animation: skillBob 4s ease-in-out infinite;
-          }
+  /* static outer ring built from ::before (keeps exact centering) */
+  .timeline-node::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: calc(100% + 22px);
+    height: calc(100% + 22px);
+    border-radius: 9999px;
+    border: 2px solid rgba(34,211,238,0.12);
+    pointer-events: none;
+    mix-blend-mode: screen;
+    filter: blur(0.6px);
+    opacity: 0.95;
+  }
 
-          /* FASTER MARQUEE ON MOBILE */
-          .marquee-track {
-            animation-duration: 14s;
-          }
-        }
+  /* pulsing glow using ::after (only one pulse, matching center) */
+  .timeline-node::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: calc(100% + 40px);
+    height: calc(100% + 40px);
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(34,211,238,0.18), transparent 40%);
+    pointer-events: none;
+    opacity: 0.9;
+    animation: nodePulse 2300ms linear infinite;
+    filter: blur(6px);
+    z-index: 20;
+  }
 
-        /* Desktop spacing between cards and the center line */
-        @media (min-width: 1024px) {
-          .exp-card {
-            position: relative;
-          }
+  /* mobile specifics */
+  @media (max-width: 767px) {
+    .marquee-track { animation-duration: 14s; }
+    .hero-card { animation: heroMobileOrbit 10s ease-in-out infinite; }
+    .skill-circle { animation: skillBob 4s ease-in-out infinite; }
 
-          /* LEFT side cards */
-          .exp-card:nth-child(odd) > div:first-child {
-            transform: translateX(-60px);
-          }
+    .timeline-line { left: 1.4rem; width: 2px; }
+    .timeline-node { left: 1.4rem; width: 12px; height: 12px; }
+    .exp-card-content { margin-left: 3.2rem !important; } /* indent content from line */
+  }
 
-          /* RIGHT side cards */
-          .exp-card:nth-child(even) > div:first-child {
-            transform: translateX(60px);
-          }
-        }
-      `}</style>
+  /* desktop layout (>= 768px) */
+  @media (min-width: 768px) {
+    /* center the main line */
+    .timeline-line {
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      box-shadow: 0 0 80px rgba(34,211,238,0.14);
+      background: linear-gradient(to bottom, #22d3ee 0%, #334155 45%, #0f172a 100%);
+    }
+
+    /* node centered on the center line */
+    .timeline-node {
+      left: 50% !important;
+      width: 16px;
+      height: 16px;
+      transform: translate(-50%, -50%) !important;
+    }
+
+    /* SHIFT CARDS AWAY FROM CENTER so line remains visible */
+    .exp-card { position: relative; }
+    .exp-card:nth-child(odd) .exp-card-content {
+      width: 45%;
+      margin-left: 0;
+      margin-right: auto;
+      transform: translateX(-48px); /* pull left card away from center line */
+    }
+    .exp-card:nth-child(even) .exp-card-content {
+      width: 45%;
+      margin-left: auto;
+      margin-right: 0;
+      transform: translateX(48px); /* pull right card away from center */
+    }
+
+    /* vertical node placement: place node at card middle for better alignment */
+    .exp-card .timeline-node {
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .experience-wrapper { padding: 0 2rem; }
+  }
+`}</style>
+
+
+
 
       {/* HERO */}
       <section className="relative overflow-hidden">
@@ -297,7 +358,7 @@ export default function HomePage() {
 
         <video
           className="absolute inset-0 w-full h-full object-cover opacity-5 -z-30 pointer-events-none"
-          src={"public/chirag.png"}
+          src={"/chirag.png"}
           autoPlay
           muted
           loop
@@ -329,12 +390,12 @@ export default function HomePage() {
               </p>
 
               <div className="flex flex-col xs:flex-row sm:flex-row gap-3 sm:gap-4 mt-5 justify-center lg:justify-start">
-                <Link
-                  href="/thumbnails"
+                <a
+                  href="#"
                   className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-400 to-cyan-500 text-black px-6 sm:px-7 py-3 sm:py-3.5 rounded-lg shadow-lg font-semibold hover:shadow-cyan-400/50 transition-all hover:scale-105"
                 >
                   View Portfolio
-                </Link>
+                </a>
 
                 <a
                   href="/cv.pdf"
@@ -355,7 +416,6 @@ export default function HomePage() {
                     "radial-gradient(circle at 20% 20%, rgba(6,182,212,0.24), transparent 18%), radial-gradient(circle at 80% 80%, rgba(59,130,246,0.16), transparent 22%)",
                   width: "820px",
                   height: "820px",
-                  transform: "translate3d(0,-30px,0)",
                 }}
               />
 
@@ -363,8 +423,7 @@ export default function HomePage() {
                 className="absolute -inset-32 z-0 rounded-full pointer-events-none"
                 style={{
                   filter: "blur(180px)",
-                  background:
-                    "radial-gradient(circle at 60% 30%, rgba(6,182,212,0.12), transparent 30%)",
+                  background: "radial-gradient(circle at 60% 30%, rgba(6,182,212,0.12), transparent 30%)",
                   width: "980px",
                   height: "980px",
                 }}
@@ -451,37 +510,40 @@ export default function HomePage() {
 
           <div className="relative">
             {/* central line */}
-            <div className="absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0 w-[3px] sm:w-[4px] bg-gradient-to-b from-cyan-400 via-slate-700 to-slate-900 timeline-line rounded" />
+            <div className="absolute left-1/2 md:left-1/2 max-md:left-4 transform md:-translate-x-1/2 top-0 bottom-0 w-[2px] md:w-[3px] bg-gradient-to-b from-cyan-400 via-slate-700 to-slate-900 timeline-line rounded" />
 
-            {/* moving glow */}
-            <div className="absolute left-1/2 -translate-x-1/2 top-0">
-              <div className="w-1.5 sm:w-2 h-[40vh] sm:h-[45vh] lg:h-[50vh] rounded-full bg-gradient-to-b from-cyan-300 to-transparent opacity-95 animate-[expGlow_6s_linear_infinite]" />
+            {/* moving glow (smoother feel) */}
+            <div className="absolute left-1/2 md:left-1/2 max-md:left-4 md:-translate-x-1/2 top-0 pointer-events-none">
+              <div 
+                className="w-[3px] h-[80px] rounded-full bg-gradient-to-b from-cyan-300 via-cyan-400 to-transparent opacity-90"
+                style={{
+                  animation: 'expGlow 12s ease-in-out infinite',
+                  filter: 'blur(14px)',
+                  boxShadow: '0 0 40px rgba(34,211,238,0.6), 0 0 80px rgba(34,211,238,0.3)'
+                }}
+              />
             </div>
 
             <div className="experience-wrapper space-y-12 sm:space-y-16 mt-6">
               {experienceFlow.map((ex, idx) => {
-                const isLeft = idx % 2 === 0;
                 return (
                   <div
                     key={ex.company}
-                    className={`exp-card relative w-full md:flex md:items-start md:justify-between ${
-                      isLeft ? "md:flex-row" : "md:flex-row-reverse"
-                    }`}
+                    className="exp-card relative w-full"
                     style={{ animationDelay: `${idx * 140}ms` }}
                   >
-                    <div className="md:w-5/12 p-5 sm:p-6 rounded-xl bg-gradient-to-br from-[#041018] to-[#020a10] border border-slate-800 shadow-xl hover:shadow-2xl hover:shadow-cyan-400/10 transition-all duration-300 hover:border-slate-700 max-w-xl mx-auto">
-                      <div className="flex items-center justify-between mb-2.5">
+                    <div className="exp-card-content p-5 sm:p-6 rounded-xl bg-gradient-to-br from-[#041018] to-[#020a10] border border-slate-800 shadow-xl hover:shadow-2xl hover:shadow-cyan-400/10 transition-all duration-300 hover:border-slate-700">
+                      <div className="flex items-center justify-between mb-2.5 flex-wrap gap-2">
                         <h3 className="text-base sm:text-lg font-bold text-slate-100">{ex.company}</h3>
-                        <div className="text-xs sm:text-sm text-cyan-300 font-medium whitespace-nowrap ml-3">
+                        <div className="text-xs sm:text-sm text-cyan-300 font-medium whitespace-nowrap">
                           {ex.period}
                         </div>
                       </div>
                       <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{ex.desc}</p>
                     </div>
 
-                    <div className="hidden md:block w-5 h-5 rounded-full bg-gradient-to-br from-cyan-400 to-sky-500 absolute left-1/2 -translate-x-1/2 top-7 shadow-[0_0_26px_rgba(34,211,238,0.4)] ring-4 ring-[#020617] timeline-node-pulse" />
-
-                    <div className="md:w-5/12" />
+                    {/* node circle */}
+                    <div className="timeline-node timeline-node-pulse" />
                   </div>
                 );
               })}
